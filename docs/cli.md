@@ -15,15 +15,34 @@ with `CGO_ENABLED=0`, so it runs on `scratch` and `alpine` images unchanged.
 ```bash
 pg-migrate new add_users_table
 pg-migrate new "backfill user emails"
+pg-migrate new add_email_index --notransaction
+pg-migrate new drop_legacy_table --irreversible
 ```
 
 Creates a `.up.sql`/`.down.sql` pair named `<utc-timestamp>_<slug>`, in
-`--migration-path`. The only command that never touches the database.
+`--migration-path`. Along with `validate`, one of the two commands that never
+touch the database.
 
 The name is lowercased and anything that is not an ASCII letter or digit becomes
 a single underscore, so `"backfill user emails"` and `backfill-user-emails` both
 yield `backfill_user_emails`. The directory is created if missing; an existing
 file is never overwritten.
+
+| Flag | Effect |
+|---|---|
+| `--notransaction` | Writes the `notransaction` directive into **both** halves — an index built `CONCURRENTLY` is dropped concurrently too. |
+| `--irreversible` | The down half becomes the `irreversible` directive and nothing else. |
+
+Passing both marks the up half `notransaction` and leaves the down half
+`irreversible`: there is no rollback script, so how it would have run does not
+arise.
+
+!!! note "Why the irreversible file has no comments"
+
+    The loader rejects a script marked `irreversible` that still has a body —
+    and a comment counts as a body. The generated file is therefore exactly one
+    line. Adding a friendly explanation underneath would make the migration fail
+    to load.
 
 ### validate
 

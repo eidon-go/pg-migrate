@@ -20,6 +20,14 @@ The pair is written to `--migration-path` (or `MIGRATION_PATH`), the same
 setting the other commands read from. The directory is created if it does not
 exist, and an existing file is never overwritten.
 
+Two flags scaffold the [directives](#directives) instead of leaving you to
+remember the exact spelling — they are case-sensitive and rejected when wrong:
+
+```bash
+pg-migrate new add_email_index --notransaction   # both halves
+pg-migrate new drop_legacy_table --irreversible  # down half only
+```
+
 ## Naming
 
 Each migration is a **pair** of files sharing a base name. That base name is the

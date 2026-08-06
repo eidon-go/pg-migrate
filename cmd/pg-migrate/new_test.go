@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eidon-go/pg-migrate/internal/migrator"
 	"github.com/eidon-go/pg-migrate/internal/source"
 )
 
@@ -77,32 +78,112 @@ func TestSlugifyIsBoundedAndSafe(t *testing.T) {
 
 // TestWriteMigrationPairIsLoadable is the test that matters: the scaffolded
 // files must satisfy the loader, or `new` would hand the user a pair that the
-// very next `up` rejects.
+// very next `up` rejects. Every flag combination is covered, because each one
+// produces different file contents.
 func TestWriteMigrationPairIsLoadable(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
+	tests := []struct {
+		name             string
+		opts             migrationTemplateOptions
+		wantUpNoTx       bool
+		wantDownNoTx     bool
+		wantIrreversible bool
+	}{
+		{
+			name: "plain",
+		},
+		{
+			name:         "notransaction",
+			opts:         migrationTemplateOptions{noTransaction: true},
+			wantUpNoTx:   true,
+			wantDownNoTx: true,
+		},
+		{
+			name:             "irreversible",
+			opts:             migrationTemplateOptions{irreversible: true},
+			wantIrreversible: true,
+		},
+		{
+			// irreversible wins for the down half: there is no rollback script,
+			// so how it would have run is moot.
+			name:             "both",
+			opts:             migrationTemplateOptions{noTransaction: true, irreversible: true},
+			wantUpNoTx:       true,
+			wantIrreversible: true,
+		},
+	}
 
-	created, err := writeMigrationPair(dir, "20260806120000_add_users", "add_users")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			id := "20260806120000_add_users"
+
+			created, err := writeMigrationPair(dir, id, "add_users", tt.opts)
+			if err != nil {
+				t.Fatalf("writeMigrationPair: %v", err)
+			}
+
+			if len(created) != 2 {
+				t.Fatalf("created %d files, want 2", len(created))
+			}
+
+			migrations, err := source.NewFS(os.DirFS(dir)).GetMigrations()
+			if err != nil {
+				t.Fatalf("the generated pair does not load: %v", err)
+			}
+
+			if len(migrations) != 1 {
+				t.Fatalf("loaded %d migrations, want 1", len(migrations))
+			}
+
+			migration := migrations[0]
+			if migration.ID != id {
+				t.Errorf("ID = %q, want %q", migration.ID, id)
+			}
+
+			upDirectives, _, err := migrator.ParseDirectiveHeader(migration.UpScript)
+			if err != nil {
+				t.Fatalf("up half does not parse: %v", err)
+			}
+
+			downDirectives, _, err := migrator.ParseDirectiveHeader(migration.DownScript)
+			if err != nil {
+				t.Fatalf("down half does not parse: %v", err)
+			}
+
+			if got := upDirectives[migrator.DirectiveNoTransaction]; got != tt.wantUpNoTx {
+				t.Errorf("up notransaction = %v, want %v", got, tt.wantUpNoTx)
+			}
+
+			if got := downDirectives[migrator.DirectiveNoTransaction]; got != tt.wantDownNoTx {
+				t.Errorf("down notransaction = %v, want %v", got, tt.wantDownNoTx)
+			}
+
+			if got := downDirectives[migrator.DirectiveIrreversible]; got != tt.wantIrreversible {
+				t.Errorf("down irreversible = %v, want %v", got, tt.wantIrreversible)
+			}
+		})
+	}
+}
+
+// The loader rejects an "irreversible" script that still has a body, and a
+// comment counts as one — so the down half must carry the directive and nothing
+// else. Easy to break by adding a friendly explanation below it.
+func TestIrreversibleDownHasNoBody(t *testing.T) {
+	t.Parallel()
+
+	opts := migrationTemplateOptions{irreversible: true}
+
+	_, body, err := migrator.ParseDirectiveHeader(strings.TrimSpace(opts.downContent("add_users")))
 	if err != nil {
-		t.Fatalf("writeMigrationPair: %v", err)
+		t.Fatalf("down half does not parse: %v", err)
 	}
 
-	if len(created) != 2 {
-		t.Fatalf("created %d files, want 2", len(created))
-	}
-
-	migrations, err := source.NewFS(os.DirFS(dir)).GetMigrations()
-	if err != nil {
-		t.Fatalf("the generated pair does not load: %v", err)
-	}
-
-	if len(migrations) != 1 {
-		t.Fatalf("loaded %d migrations, want 1", len(migrations))
-	}
-
-	if got := migrations[0].ID; got != "20260806120000_add_users" {
-		t.Errorf("ID = %q, want %q", got, "20260806120000_add_users")
+	if strings.TrimSpace(body) != "" {
+		t.Errorf("body must be empty, got %q", body)
 	}
 }
 
@@ -111,11 +192,11 @@ func TestWriteMigrationPairRefusesToOverwrite(t *testing.T) {
 
 	dir := t.TempDir()
 
-	if _, err := writeMigrationPair(dir, "20260806120000_add_users", "add_users"); err != nil {
+	if _, err := writeMigrationPair(dir, "20260806120000_add_users", "add_users", migrationTemplateOptions{}); err != nil {
 		t.Fatalf("first write: %v", err)
 	}
 
-	if _, err := writeMigrationPair(dir, "20260806120000_add_users", "add_users"); err == nil {
+	if _, err := writeMigrationPair(dir, "20260806120000_add_users", "add_users", migrationTemplateOptions{}); err == nil {
 		t.Fatal("second write succeeded, want an error")
 	}
 }
@@ -133,7 +214,7 @@ func TestWriteMigrationPairCleansUpAfterPartialFailure(t *testing.T) {
 		t.Fatalf("seed down file: %v", err)
 	}
 
-	if _, err := writeMigrationPair(dir, id, "add_users"); err == nil {
+	if _, err := writeMigrationPair(dir, id, "add_users", migrationTemplateOptions{}); err == nil {
 		t.Fatal("writeMigrationPair succeeded, want an error")
 	}
 
@@ -147,7 +228,7 @@ func TestWriteMigrationPairCreatesMissingDirectory(t *testing.T) {
 
 	dir := filepath.Join(t.TempDir(), "db", "migrations")
 
-	if _, err := writeMigrationPair(dir, "20260806120000_init", "init"); err != nil {
+	if _, err := writeMigrationPair(dir, "20260806120000_init", "init", migrationTemplateOptions{}); err != nil {
 		t.Fatalf("writeMigrationPair: %v", err)
 	}
 

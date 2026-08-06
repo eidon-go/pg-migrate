@@ -53,19 +53,46 @@ const downTemplate = `-- Undo: %s
 
 `
 
+// notransactionTemplate replaces the boilerplate about how to opt in, since the
+// caller already has.
+const notransactionTemplate = `-- +migrate notransaction
+-- %s
+--
+-- Runs statement by statement, outside a transaction. A failure partway leaves
+-- the earlier statements committed and records the migration as failed, which
+-- blocks every later operation until a human resolves it.
+--
+-- All statements run on one dedicated connection, so session state carries
+-- across them:
+--
+--   SET statement_timeout = 0;
+--   CREATE INDEX CONCURRENTLY ...
+
+`
+
+// irreversibleTemplate is the entire contents of the down half — no trailing
+// commentary. The loader rejects an "irreversible" script that still has a body,
+// and a comment counts as one.
+const irreversibleTemplate = `-- +migrate irreversible
+`
+
 // newCommand builds the "new" subcommand, which scaffolds an up/down pair.
 //
 // resolvePath is shared with the commands that read migrations, so a single
 // --migration-path (or MIGRATION_PATH) governs where files are written and
 // where they are read from. It never touches the database.
 func newCommand(resolvePath func() (string, error)) *cobra.Command {
-	return &cobra.Command{
+	var opts migrationTemplateOptions
+
+	cmd := &cobra.Command{
 		Use:   "new <name>",
 		Short: "Create an up/down migration pair",
 		Long: "Create a timestamped .up.sql/.down.sql pair.\n\n" +
 			"The name is slugified and prefixed with a UTC timestamp, so that IDs sort\n" +
 			"chronologically and two people working in parallel cannot collide.",
 		Example: "  pg-migrate new add_users_table\n" +
+			"  pg-migrate new add_email_index --notransaction\n" +
+			"  pg-migrate new drop_legacy_table --irreversible\n" +
 			"  pg-migrate new \"backfill user emails\" --migration-path ./db/migrations",
 		Args:          cobra.ExactArgs(1),
 		SilenceUsage:  true,
@@ -85,7 +112,7 @@ func newCommand(resolvePath func() (string, error)) *cobra.Command {
 			// otherwise generate IDs that sort in an order nobody intended.
 			id := time.Now().UTC().Format(timestampLayout) + "_" + slug
 
-			created, err := writeMigrationPair(dir, id, slug)
+			created, err := writeMigrationPair(dir, id, slug, opts)
 			if err != nil {
 				return err
 			}
@@ -97,12 +124,57 @@ func newCommand(resolvePath func() (string, error)) *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&opts.noTransaction, "notransaction", false,
+		"Mark both halves to run outside a transaction, for statements PostgreSQL "+
+			"refuses inside one (CREATE INDEX CONCURRENTLY)")
+	cmd.Flags().BoolVar(&opts.irreversible, "irreversible", false,
+		"Mark the migration as impossible to roll back; the down half gets the "+
+			"irreversible directive instead of a script")
+
+	return cmd
+}
+
+// migrationTemplateOptions selects which scaffold each half gets.
+type migrationTemplateOptions struct {
+	noTransaction bool
+	irreversible  bool
+}
+
+// upContent renders the forward half.
+func (o migrationTemplateOptions) upContent(slug string) string {
+	if o.noTransaction {
+		return fmt.Sprintf(notransactionTemplate, slug)
+	}
+
+	return fmt.Sprintf(upTemplate, slug)
+}
+
+// downContent renders the rollback half.
+//
+// irreversible wins over notransaction: the directive declares there is no
+// rollback script at all, so how it would have been executed is moot — and the
+// loader rejects a file carrying both, since "irreversible" must be the only
+// directive on the line it appears on.
+func (o migrationTemplateOptions) downContent(slug string) string {
+	switch {
+	case o.irreversible:
+		return irreversibleTemplate
+
+	case o.noTransaction:
+		// A CONCURRENTLY index is dropped concurrently too, so the rollback
+		// needs the same directive far more often than not.
+		return fmt.Sprintf(notransactionTemplate, "Undo: "+slug)
+
+	default:
+		return fmt.Sprintf(downTemplate, slug)
+	}
 }
 
 // writeMigrationPair creates both halves, refusing to overwrite either. If the
 // second file cannot be created the first is removed again: a lone .up.sql is
 // rejected by the loader, so leaving one behind would break every later command.
-func writeMigrationPair(dir, id, slug string) ([]string, error) {
+func writeMigrationPair(dir, id, slug string, opts migrationTemplateOptions) ([]string, error) {
 	if err := os.MkdirAll(dir, dirPerm); err != nil {
 		return nil, fmt.Errorf("create migration directory %s: %w", dir, err)
 	}
@@ -110,11 +182,11 @@ func writeMigrationPair(dir, id, slug string) ([]string, error) {
 	upPath := filepath.Join(dir, id+".up.sql")
 	downPath := filepath.Join(dir, id+".down.sql")
 
-	if err := writeNewFile(upPath, fmt.Sprintf(upTemplate, slug)); err != nil {
+	if err := writeNewFile(upPath, opts.upContent(slug)); err != nil {
 		return nil, err
 	}
 
-	if err := writeNewFile(downPath, fmt.Sprintf(downTemplate, slug)); err != nil {
+	if err := writeNewFile(downPath, opts.downContent(slug)); err != nil {
 		_ = os.Remove(upPath)
 
 		return nil, err
