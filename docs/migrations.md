@@ -24,6 +24,64 @@ Rules the loader enforces:
   `*.down.sql` is an error rather than a silent skip.
 - **Subdirectories are not traversed.** One flat directory.
 
+## Choosing an ID scheme
+
+IDs are opaque strings compared byte by byte. Two schemes are common, and the
+library treats them identically.
+
+=== "Sequence numbers"
+
+    ```
+    0001_create_users.up.sql
+    0042_add_email_index.up.sql
+    ```
+
+    Readable, and the number matches the order things were applied. Two people
+    working in parallel can pick the same number — git will show the collision,
+    but someone has to renumber.
+
+=== "Timestamps"
+
+    ```
+    20260115103000_create_users.up.sql
+    20260806143022_add_email_index.up.sql
+    ```
+
+    No collisions between branches, and the width never runs out. Less readable,
+    and out-of-order applies are more common, because the order branches merge in
+    rarely matches the order they were created.
+
+Neither avoids [interleaved migrations](concepts.md#interleaved-migrations) — a
+branch created earlier but merged later sorts before what is already applied
+under both schemes.
+
+!!! warning "Sequence numbers break when they outgrow their width"
+
+    Comparison is lexicographic, not numeric. After `9999` the next ID sorts
+    **before** everything already applied:
+
+    ```
+    sorted: 10000_x  10001_x  9998_x  9999_x
+    ```
+
+    Nothing is corrupted — the migration is reported as interleaved rather than
+    applied silently in the wrong place — but every migration from then on stays
+    permanently flagged, and the warning stops meaning anything. Pick a width
+    you will not reach, or use timestamps.
+
+!!! tip "Switching schemes needs no rewrite"
+
+    A timestamp starts with `2`; a zero-padded number starts with `0`. Timestamps
+    therefore sort after every existing sequence ID:
+
+    ```
+    sorted: 0001_seq  0002_seq  20260806120000_ts
+    ```
+
+    Start naming new migrations with timestamps whenever you like. Already
+    applied migrations keep their IDs, their stored rollback scripts, and their
+    place in the order.
+
 ## Directives
 
 A file may begin with a single directive line. It must be the **very first
