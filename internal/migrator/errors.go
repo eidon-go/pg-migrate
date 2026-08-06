@@ -42,3 +42,18 @@ var ErrUnrecorded = errors.New("schema was changed but the bookkeeping row could
 // the whole operation is refused before it starts, rather than discovering the
 // problem partway through.
 var ErrIrreversible = errors.New("migration is marked irreversible and cannot be rolled back")
+
+// ErrAlreadyRecorded is returned by Baseline when the bookkeeping table already
+// holds rows. Baseline exists to adopt this tool on a database that predates it,
+// which by definition happens once, on a ledger that is empty.
+//
+// The restriction is what keeps the operation honest. Without it, Baseline would
+// double as "mark this migration applied without running it" — an easy way to
+// skip a migration whose failure was inconvenient, and an invisible one, since
+// the row it writes is indistinguishable from a genuine apply.
+var ErrAlreadyRecorded = errors.New("the bookkeeping table already records migrations")
+
+// ErrBaselineNotFound is returned when the ID given to Baseline is not among the
+// migrations in the source. Baselining "up to" an ID that does not exist would
+// silently record a different set than the caller named.
+var ErrBaselineNotFound = errors.New("no migration with that ID exists in the source")

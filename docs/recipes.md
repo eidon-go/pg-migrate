@@ -118,6 +118,38 @@ func TestMigrationsAreReversible(t *testing.T) {
 }
 ```
 
+## Adopt an existing database
+
+The schema has been there for years; this tool has not. Describe the current
+schema as migrations, then tell the ledger they are already applied:
+
+```bash
+# 1. Write migrations matching what the database already has.
+pg-migrate new create_users
+pg-migrate new add_orders
+# ... fill them in with the DDL that produced the current schema
+
+# 2. Check they parse before touching anything.
+pg-migrate validate
+
+# 3. Record them as applied, without running them.
+pg-migrate baseline 20260115104500_add_orders
+
+# 4. From here on, normal operation.
+pg-migrate up
+```
+
+The baselined migrations are never executed — their tables already exist, so
+running them would fail. What matters is that their **rollback scripts are
+stored**, so a later `down` has something to run.
+
+!!! tip "Verify before you trust it"
+
+    Get the baseline migrations right by generating them from the live schema
+    (`pg_dump --schema-only`), then confirm on a scratch copy that applying them
+    from empty reproduces production. A baseline is a claim about what the schema
+    is; nothing checks that claim for you.
+
 ## Catch broken migrations before they reach CI
 
 `validate` needs no database, so it is cheap enough for a pre-commit hook:

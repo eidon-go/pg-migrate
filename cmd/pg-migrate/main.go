@@ -485,7 +485,60 @@ stored rollback script.`,
 	}
 	rootCmd.AddCommand(forgetCmd)
 
-	// 7. new and validate — both work on files alone, never touching the database.
+	// 7. baseline command
+	baselineCmd := &cobra.Command{
+		Use:   "baseline <migration-id>",
+		Short: "Adopt an existing database by recording migrations as applied",
+		Long: `Record every migration up to and including <migration-id> as applied,
+without running any of them.
+
+This is how you adopt pg-migrate on a database whose schema already exists.
+Write the migrations describing the current schema, then baseline through the
+last of them: the bookkeeping table learns what is already there, and the next
+'pg-migrate up' applies only what comes after.
+
+Refuses to run if the bookkeeping table already records anything. Adoption
+happens once, on an empty ledger — that restriction is what stops this from
+becoming a way to skip a migration that was inconvenient to fix.`,
+		Example: "  pg-migrate baseline 20260115103000_create_users",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts, err := buildOptions(optsOverrides{})
+			if err != nil {
+				return err
+			}
+
+			path, err := resolvePath()
+			if err != nil {
+				return err
+			}
+
+			dbConn, err := connectDB(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer dbConn.Close()
+
+			throughID := args[0]
+
+			result, err := migrate.Baseline(cmd.Context(), dbConn, os.DirFS(path), throughID, opts...)
+			if err != nil {
+				return err
+			}
+
+			slog.Warn("Recorded migrations as applied WITHOUT running them",
+				"count", len(result.Applied), "through", throughID)
+
+			for _, id := range result.Applied {
+				fmt.Fprintln(cmd.OutOrStdout(), id)
+			}
+
+			return nil
+		},
+	}
+	rootCmd.AddCommand(baselineCmd)
+
+	// 8. new and validate — both work on files alone, never touching the database.
 	rootCmd.AddCommand(newCommand(resolvePath))
 	rootCmd.AddCommand(validateCommand(resolvePath))
 

@@ -159,6 +159,7 @@ $$ LANGUAGE plpgsql;
 | `Down` / `DownAll` | Rolls back the last N / every applied migration. |
 | `Plan` | Reports what a `Reconcile` would do, including whether it would refuse. Reads only. |
 | `Status` | Lists what is recorded as applied. Reads only. |
+| `Baseline` | Records migrations as applied without running them, to adopt an existing database. |
 | `Forget` | Drops a bookkeeping row without running its rollback — the manual escape hatch. |
 
 Options: `WithRollback`, `WithInterleaved`, `WithLockTimeout`, `WithLockID`,
@@ -166,7 +167,7 @@ Options: `WithRollback`, `WithInterleaved`, `WithLockTimeout`, `WithLockID`,
 
 Sentinel errors for `errors.Is`: `ErrDivergence`, `ErrInterleaved`,
 `ErrFailedMigrations`, `ErrIrreversible`, `ErrEmptySource`, `ErrUnrecorded`,
-`ErrLockTimeout`, `ErrPoolTooSmall`.
+`ErrLockTimeout`, `ErrPoolTooSmall`, `ErrAlreadyRecorded`, `ErrBaselineNotFound`.
 
 Full reference on [pkg.go.dev](https://pkg.go.dev/github.com/eidon-go/pg-migrate).
 
@@ -182,6 +183,7 @@ pg-migrate down 2                  # roll back the last two
 pg-migrate down all                # roll back everything
 pg-migrate plan --json             # what reconcile would do, no changes
 pg-migrate status --json           # what is recorded as applied
+pg-migrate baseline 20260115103000_create_users  # adopt an existing database
 pg-migrate forget 20260210091500_bad_index   # drop a row without running its rollback
 ```
 

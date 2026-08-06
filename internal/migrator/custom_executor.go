@@ -447,6 +447,44 @@ func (e *CustomExecutor) ApplyMigration(ctx context.Context, migration *Migratio
 	return nil
 }
 
+// RecordApplied writes bookkeeping rows for migrations whose effect is already
+// present in the schema, without executing anything.
+//
+// This exists for adopting the tool on a database that predates it. The scripts
+// are stored exactly as a normal apply would store them, so a later rollback
+// reads back the same text and behaves identically.
+//
+// All rows go in one transaction: a partial baseline would leave the ledger
+// describing a prefix of the schema, which is the state this whole operation
+// exists to avoid.
+func (e *CustomExecutor) RecordApplied(ctx context.Context, migrations []*Migration) error {
+	if len(migrations) == 0 {
+		return nil
+	}
+
+	tx, err := e.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	insert := e.query("INSERT INTO %s (id, up_script, down_script, error) VALUES ($1, $2, $3, NULL)")
+
+	for _, migration := range migrations {
+		if _, execErr := tx.ExecContext(ctx,
+			insert, migration.ID, migration.UpScript, migration.DownScript,
+		); execErr != nil {
+			return fmt.Errorf("record %s as applied: %w", migration.ID, execErr)
+		}
+	}
+
+	if commitErr := tx.Commit(); commitErr != nil {
+		return fmt.Errorf("commit transaction: %w", commitErr)
+	}
+
+	return nil
+}
+
 // RollbackMigration rolls back a migration using the down_script from the
 // database. The script is read from the database rather than from the file
 // source on purpose: rollback must work when the checked-out branch no longer

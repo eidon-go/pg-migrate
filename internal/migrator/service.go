@@ -16,6 +16,7 @@ type migrationExecutor interface {
 	EnsureMigrationsTable(ctx context.Context) error
 	TableExists(ctx context.Context) (bool, error)
 	ApplyMigration(ctx context.Context, migration *Migration) error
+	RecordApplied(ctx context.Context, migrations []*Migration) error
 	RollbackMigration(ctx context.Context, id string) error
 	GetAppliedMigrations(ctx context.Context) ([]AppliedMigration, error)
 	DeleteRecord(ctx context.Context, id string) (bool, error)
@@ -358,6 +359,80 @@ func (s *Service) Forget(ctx context.Context, id string) error {
 
 		return nil
 	})
+}
+
+// Baseline records every migration up to and including throughID as applied,
+// without executing any of them.
+//
+// It exists for one situation: adopting this tool on a database whose schema
+// already exists. The migrations describing that schema cannot be run — the
+// tables are already there — but the ledger has to know about them, or the first
+// Up would try to create everything from scratch.
+//
+// Two guards keep this from becoming a way to skip migrations. The bookkeeping
+// table must be empty, since adoption happens once; and throughID must name a
+// migration that actually exists, so the recorded set is the one the caller
+// asked for rather than a silently different prefix.
+//
+// The scripts are stored exactly as a normal apply would store them, so a later
+// rollback of a baselined migration reads back the same text and behaves the
+// same way.
+func (s *Service) Baseline(ctx context.Context, throughID string) (*Result, error) {
+	result := &Result{}
+
+	err := s.withLock(ctx, func() error {
+		if err := s.executor.EnsureMigrationsTable(ctx); err != nil {
+			return fmt.Errorf("ensure migrations table: %w", err)
+		}
+
+		applied, err := s.executor.GetAppliedMigrations(ctx)
+		if err != nil {
+			return fmt.Errorf("get applied migrations: %w", err)
+		}
+
+		if len(applied) > 0 {
+			return fmt.Errorf(
+				"%w: %d row(s), the most recent being %q; baseline is for adopting this tool on a "+
+					"database it has never managed",
+				ErrAlreadyRecorded, len(applied), applied[len(applied)-1].ID)
+		}
+
+		fromFiles, err := s.source.GetMigrations()
+		if err != nil {
+			return fmt.Errorf("get migrations from files: %w", err)
+		}
+
+		toRecord, err := migrationsThrough(fromFiles, throughID)
+		if err != nil {
+			return err
+		}
+
+		if err := s.executor.RecordApplied(ctx, toRecord); err != nil {
+			return fmt.Errorf("record baseline: %w", err)
+		}
+
+		result.Applied = toRecord
+
+		s.logger.WarnContext(ctx, "Recorded migrations as applied without running them",
+			"count", len(toRecord), "through", throughID)
+
+		return nil
+	})
+
+	return result, err
+}
+
+// migrationsThrough returns the prefix of fromFiles up to and including
+// throughID. fromFiles is sorted by ID, so the prefix is exactly what an Up
+// would have applied first.
+func migrationsThrough(fromFiles []*Migration, throughID string) ([]*Migration, error) {
+	for i, migration := range fromFiles {
+		if migration.ID == throughID {
+			return fromFiles[:i+1], nil
+		}
+	}
+
+	return nil, fmt.Errorf("%w: %q", ErrBaselineNotFound, throughID)
 }
 
 // GetMigrations reads migrations from files and DB. fromFiles is sorted by ID;

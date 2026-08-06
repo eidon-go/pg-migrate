@@ -125,6 +125,30 @@ pg-migrate status --json
 What is recorded as applied, in application order. For a failed migration this is
 where you find the recorded error and the stored rollback script.
 
+### baseline
+
+```bash
+pg-migrate baseline 20260115103000_create_users
+```
+
+Records every migration **up to and including** that ID as applied, without
+running any of them. This is how you adopt pg-migrate on a database whose schema
+already exists:
+
+1. Write migrations describing the current schema.
+2. `pg-migrate baseline <last-of-them>` — the ledger learns what is already there.
+3. `pg-migrate up` — applies only what comes after.
+
+Two guards keep it honest. It refuses unless the bookkeeping table is **empty**,
+because adoption happens once; and the ID must exist in the source, so the
+recorded set is the one you named.
+
+!!! warning "Rollback of a baselined migration runs against a schema this tool never built"
+
+    The `.down.sql` is stored exactly as a normal apply would store it, so a
+    later `down` executes that script — against a schema somebody else created.
+    Whether it fits is something only you can know.
+
 ### forget
 
 ```bash
