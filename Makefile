@@ -104,6 +104,15 @@ docs-build:
 changelog:
 	git cliff --unreleased
 
+# Rewrite CHANGELOG.md for the release being cut, inferring the next version
+# from the Conventional Commits since the last tag. Run this, commit the result,
+# and only then push the tag — the release workflow does not write it back.
+changelog-release:
+	git cliff --bump -o CHANGELOG.md
+	@echo "CHANGELOG.md updated. Commit it, then tag:"
+	@echo "  git commit -am 'docs(changelog): update for \$$(git cliff --bumped-version)'"
+	@echo "  git tag \$$(git cliff --bumped-version) && git push origin main --tags"
+
 # Dry-run the release pipeline without publishing anything.
 release-check:
 	$(GO) run github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION) check

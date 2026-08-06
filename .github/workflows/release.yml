@@ -91,8 +91,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Notes for this tag only. The cumulative CHANGELOG.md is written back to
-      # main by the changelog job below.
+      # Notes for this tag only, attached to the GitHub Release. The cumulative
+      # CHANGELOG.md is maintained on main by `make changelog-release`.
       - name: Generate release notes
         uses: orhun/git-cliff-action@v4
         id: cliff
@@ -110,36 +110,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Keeps CHANGELOG.md on main in sync with the tags. Split from the release job
-  # so a failure here cannot leave a tag without published binaries.
-  changelog:
-    name: Update CHANGELOG.md
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Generate CHANGELOG.md
-        uses: orhun/git-cliff-action@v4
-        with:
-          config: cliff.toml
-          args: --bump
-        env:
-          OUTPUT: CHANGELOG.md
-
-      - name: Commit
+      # CHANGELOG.md is deliberately NOT written back to main from here.
+      #
+      # The main ruleset requires a pull request, and the GitHub Actions app
+      # cannot be granted a bypass on a repository-owned ruleset. Pushing from
+      # CI would therefore need a personal access token with admin rights
+      # stored as a secret — a standing key that can rewrite the default branch,
+      # in exchange for saving one local command.
+      #
+      # Instead `make changelog-release` regenerates the file as part of cutting
+      # a release, before the tag is pushed. See CONTRIBUTING.md.
+      - name: Check CHANGELOG.md is up to date
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- CHANGELOG.md; then
-            echo "CHANGELOG.md unchanged."
-            exit 0
+          if ! grep -q "${GITHUB_REF_NAME#v}" CHANGELOG.md; then
+            echo "::warning::CHANGELOG.md does not mention ${GITHUB_REF_NAME}." \
+                 "Run 'make changelog-release' and commit before tagging."
           fi
-          git add CHANGELOG.md
-          git commit -m "docs(changelog): update for ${GITHUB_REF_NAME}"
-          git push origin main

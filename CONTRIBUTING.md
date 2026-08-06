@@ -93,6 +93,26 @@ Formatting is `gofumpt` + `goimports` + `gci`, all driven by `make fmt`.
 - The PR title becomes the squashed commit message, so it also follows
   Conventional Commits.
 
+## Cutting a release
+
+Releases are tag-driven, but the changelog is committed before the tag rather
+than written back by CI — the `main` ruleset requires a pull request, and giving
+Actions a token that could bypass it is a worse trade than running one command.
+
+```bash
+make changelog-release            # rewrites CHANGELOG.md, infers the next version
+git checkout -b release/vX.Y.Z
+git commit -am "docs(changelog): update for vX.Y.Z"
+# open a PR, let CI pass, squash-merge
+
+git checkout main && git pull
+git tag vX.Y.Z && git push origin vX.Y.Z
+```
+
+Pushing the tag runs the full verification suite again, then publishes binaries,
+the container image and a GitHub Release whose notes git-cliff generates from the
+same commits.
+
 ## Reporting bugs
 
 Open an issue with the version, the PostgreSQL version, and the smallest

@@ -81,3 +81,8 @@ commit_preprocessors = [
 tag_pattern = "v[0-9].*"
 skip_tags = ""
 ignore_tags = ""
+
+[bump]
+# Tags carry a "v" prefix, so the computed next version must too — without this
+# `--bump` derives a bare "0.1.0" and rejects it against tag_pattern.
+initial_tag = "v0.1.0"
