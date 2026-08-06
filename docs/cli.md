@@ -10,6 +10,21 @@ with `CGO_ENABLED=0`, so it runs on `scratch` and `alpine` images unchanged.
 
 ## Commands
 
+### new
+
+```bash
+migrate new add_users_table
+migrate new "backfill user emails"
+```
+
+Creates a `.up.sql`/`.down.sql` pair named `<utc-timestamp>_<slug>`, in
+`--migration-path`. The only command that never touches the database.
+
+The name is lowercased and anything that is not an ASCII letter or digit becomes
+a single underscore, so `"backfill user emails"` and `backfill-user-emails` both
+yield `backfill_user_emails`. The directory is created if missing; an existing
+file is never overwritten.
+
 ### up
 
 ```bash
@@ -64,7 +79,7 @@ where you find the recorded error and the stored rollback script.
 ### forget
 
 ```bash
-migrate forget 0007_email_index
+migrate forget 20260210091500_email_index
 ```
 
 Drops a bookkeeping row **without running its rollback**. The escape hatch after

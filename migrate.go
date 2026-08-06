@@ -17,12 +17,14 @@
 // migration ID:
 //
 //	migrations/
-//	  0001_create_users.up.sql
-//	  0001_create_users.down.sql
+//	  20260115103000_create_users.up.sql
+//	  20260115103000_create_users.down.sql
 //
-// IDs are compared lexicographically, so numeric prefixes must be zero-padded
-// to a consistent width. Both halves are required — a missing .down.sql is an
-// error, not an empty rollback.
+// IDs are compared lexicographically, never numerically. The CLI's "new"
+// command therefore names them with a fixed-width UTC timestamp; a zero-padded
+// sequence works as long as it never outgrows its width, since the first ID that
+// does sorts before everything already applied. Both halves are required — a
+// missing .down.sql is an error, not an empty rollback.
 //
 // Each file is plain SQL. It may begin with a single directive line, which must
 // be the very first line:

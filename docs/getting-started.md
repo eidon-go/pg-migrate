@@ -27,23 +27,36 @@
 
 ## Write your first migration
 
-Migrations come in pairs sharing a base name, which becomes the migration ID:
+```bash
+export MIGRATION_PATH=./migrations
+migrate new create_users
+```
 
-```title="migrations/0001_create_users.up.sql"
+```
+migrations/20260115103000_create_users.up.sql
+migrations/20260115103000_create_users.down.sql
+```
+
+Migrations come in pairs sharing a base name, which becomes the migration ID.
+Fill both halves in:
+
+```sql title="migrations/20260115103000_create_users.up.sql"
 CREATE TABLE users (
     id    BIGSERIAL PRIMARY KEY,
     email TEXT NOT NULL UNIQUE
 );
 ```
 
-```title="migrations/0001_create_users.down.sql"
+```sql title="migrations/20260115103000_create_users.down.sql"
 DROP TABLE users;
 ```
 
-!!! warning "Zero-pad your prefixes"
+!!! note "Why the timestamp"
 
-    IDs are compared **lexicographically**, so `0002` sorts before `0010` but
-    `2` sorts after `10`. Pick a width and keep it.
+    IDs are compared **lexicographically**, never numerically — `0002` sorts
+    before `0010`, but `2` sorts after `10`. A fixed-width UTC timestamp keeps
+    order and collisions from ever becoming your problem. Naming files by hand
+    works too; see [Why timestamps](migrations.md#why-timestamps).
 
 ## Run it from Go
 

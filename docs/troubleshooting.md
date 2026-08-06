@@ -17,7 +17,7 @@ migrate status --json | jq '.[] | select(.failed)'
 
 ```json
 {
-  "id": "0012_users_email_index",
+  "id": "20260401093000_users_email_index",
   "applied_at": "2026-08-06T10:14:22Z",
   "error": "statement 2 failed: canceling statement due to statement timeout",
   "failed": true,
@@ -45,7 +45,7 @@ DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;
 ### 3. Clear the row
 
 ```bash
-migrate forget 0012_users_email_index
+migrate forget 20260401093000_users_email_index
 ```
 
 This touches only the ledger. Normal operation resumes on the next run.

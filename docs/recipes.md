@@ -149,13 +149,13 @@ migrate plan --json | jq -e '.blocked == false and (.to_rollback | length) == 0'
 `CREATE INDEX CONCURRENTLY` cannot run in a transaction, and it can take hours on
 a large table.
 
-```sql title="0012_users_email_index.up.sql"
+```sql title="20260401093000_users_email_index.up.sql"
 -- +migrate notransaction
 SET statement_timeout = 0;
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email ON users(email);
 ```
 
-```sql title="0012_users_email_index.down.sql"
+```sql title="20260401093000_users_email_index.down.sql"
 -- +migrate notransaction
 DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;
 ```
