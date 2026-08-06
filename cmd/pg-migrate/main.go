@@ -485,8 +485,9 @@ stored rollback script.`,
 	}
 	rootCmd.AddCommand(forgetCmd)
 
-	// 7. new command — scaffolds files, never touches the database.
+	// 7. new and validate — both work on files alone, never touching the database.
 	rootCmd.AddCommand(newCommand(resolvePath))
+	rootCmd.AddCommand(validateCommand(resolvePath))
 
 	if err := rootCmd.Execute(); err != nil {
 		return fmt.Errorf("execute command: %w", err)

@@ -174,6 +174,7 @@ Full reference on [pkg.go.dev](https://pkg.go.dev/github.com/eidon-go/pg-migrate
 
 ```bash
 pg-migrate new add_users_table     # scaffold a timestamped up/down pair
+pg-migrate validate                # check the files; no database needed
 pg-migrate up                      # apply pending migrations
 pg-migrate reconcile               # make the DB match the files
 pg-migrate reconcile -r            # ...allowing rollback of extras

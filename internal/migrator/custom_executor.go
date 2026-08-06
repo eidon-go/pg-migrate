@@ -415,7 +415,7 @@ func (e *CustomExecutor) ApplyMigration(ctx context.Context, migration *Migratio
 		return fmt.Errorf("parse up script for %s: %w", migration.ID, err)
 	}
 
-	noTransaction := directives[directiveNoTransaction]
+	noTransaction := directives[DirectiveNoTransaction]
 
 	if noTransaction {
 		return e.applyWithoutTransaction(ctx, migration, upSQL)
@@ -472,7 +472,7 @@ func (e *CustomExecutor) RollbackMigration(ctx context.Context, id string) error
 		return fmt.Errorf("parse stored down script for %s: %w", id, err)
 	}
 
-	downNoTransaction := directives[directiveNoTransaction]
+	downNoTransaction := directives[DirectiveNoTransaction]
 
 	if downNoTransaction {
 		return e.rollbackWithoutTransaction(ctx, id, downSQL)

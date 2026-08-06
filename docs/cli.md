@@ -25,6 +25,36 @@ a single underscore, so `"backfill user emails"` and `backfill-user-emails` both
 yield `backfill_user_emails`. The directory is created if missing; an existing
 file is never overwritten.
 
+### validate
+
+```bash
+pg-migrate validate
+pg-migrate validate --json
+```
+
+Parses every migration in `--migration-path` and reports what it found. **Needs
+no database and no credentials**, so it belongs in a pre-commit hook and in CI:
+
+```
+  20260115104500_create_sessions
+  20260210091500_sessions_expiry_index  [notransaction]
+
+2 migration(s) in ./migrations: OK
+```
+
+It catches what would otherwise surface halfway through a deployment — a missing
+`.down.sql`, a misspelled directive, an unclosed `StatementBegin` block, an empty
+rollback that forgot the `irreversible` marker. Exits non-zero on the first
+problem.
+
+`[notransaction]` and `[irreversible]` are called out because they are the two
+properties that change what a deployment risks: one gives up atomicity, the other
+gives up rollback.
+
+An empty directory is not an error — a project that has not written its first
+migration is valid. It is `reconcile` that treats an empty source as suspicious,
+because there it would mean rolling the schema back to nothing.
+
 ### up
 
 ```bash

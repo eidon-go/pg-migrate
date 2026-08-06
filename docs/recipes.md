@@ -118,6 +118,34 @@ func TestMigrationsAreReversible(t *testing.T) {
 }
 ```
 
+## Catch broken migrations before they reach CI
+
+`validate` needs no database, so it is cheap enough for a pre-commit hook:
+
+```yaml title=".pre-commit-config.yaml"
+repos:
+  - repo: local
+    hooks:
+      - id: pg-migrate-validate
+        name: validate migrations
+        entry: pg-migrate validate
+        language: system
+        files: ^migrations/.*\.sql$
+        pass_filenames: false
+```
+
+Or as a step in CI, before anything that needs credentials:
+
+```yaml
+- name: Validate migrations
+  run: go run github.com/eidon-go/pg-migrate/cmd/pg-migrate@latest validate
+  env:
+    MIGRATION_PATH: ./migrations
+```
+
+A misspelled `-- +migrate notransction` is otherwise found when the deployment
+is already running.
+
 ## Gate a deployment on the plan
 
 `Plan` needs no DDL privileges and takes no lock, so it is safe to run from CI
