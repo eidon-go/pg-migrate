@@ -1,0 +1,25 @@
+# https://docs.codecov.com/docs/codecov-yaml
+coverage:
+  status:
+    project:
+      default:
+        # Coverage should not fall, but a percentage point of noise between runs
+        # is not a reason to block a PR.
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: 80%
+        threshold: 0%
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: true
+
+ignore:
+  # Teaching material and integration-test scaffolding: exercised by hand and by
+  # the integration job, not meaningful as coverage targets.
+  - "examples/**"
+  - "test/dbtest/**"
+  - "cmd/migrate/main.go" # cobra wiring, covered end-to-end instead

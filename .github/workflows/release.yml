@@ -1,0 +1,145 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  # A tag push skips the PR checks entirely, so re-run them here. Nothing is
+  # published unless the tagged commit is green on its own.
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_POSTGRES_HOST: localhost
+      TEST_POSTGRES_PORT: "5432"
+      TEST_POSTGRES_USER: postgres
+      TEST_POSTGRES_PASSWORD: postgres
+      TEST_POSTGRES_ADMIN_DB: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.12.2
+          args: --timeout=5m
+
+      - name: Unit tests
+        run: go test -race -count=1 -timeout 5m ./...
+
+      - name: Integration tests
+        run: go test -tags=integration -race -count=1 -timeout 10m ./test/...
+
+  release:
+    name: Release
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release and upload binaries
+      packages: write # push container images to ghcr.io
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # git-cliff reads the whole commit history to build the changelog.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      # GoReleaser shells out to syft for the `sboms` section; it is not on the
+      # runner by default and the release fails at the very last step without it.
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@v0
+
+      # Required for the arm64 image: the runner is amd64.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Notes for this tag only. The cumulative CHANGELOG.md is written back to
+      # main by the changelog job below.
+      - name: Generate release notes
+        uses: orhun/git-cliff-action@v4
+        id: cliff
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: RELEASE_NOTES.md
+
+      - name: GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean --release-notes=RELEASE_NOTES.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Keeps CHANGELOG.md on main in sync with the tags. Split from the release job
+  # so a failure here cannot leave a tag without published binaries.
+  changelog:
+    name: Update CHANGELOG.md
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Generate CHANGELOG.md
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --bump
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "CHANGELOG.md unchanged."
+            exit 0
+          fi
+          git add CHANGELOG.md
+          git commit -m "docs(changelog): update for ${GITHUB_REF_NAME}"
+          git push origin main

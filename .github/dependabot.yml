@@ -1,0 +1,25 @@
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      # Matches Conventional Commits so git-cliff parses (and skips) these.
+      prefix: "chore(deps)"
+    groups:
+      # One PR for patch/minor bumps; majors stay separate so they get read.
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      actions:
+        patterns: ["*"]
