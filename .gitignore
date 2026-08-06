@@ -1,0 +1,21 @@
+# IDE
+.idea/
+.vscode/
+
+# Build output
+/migrate
+/dist/
+vendor/
+
+# Test and coverage artifacts
+coverage.out
+coverage.html
+
+# Documentation build
+/site/
+
+# Release scratch
+RELEASE_NOTES.md
+
+# Local notes, not part of the project
+plans/

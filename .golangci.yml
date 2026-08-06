@@ -1,0 +1,313 @@
+version: "2"
+
+run:
+  timeout: 5m
+  go: "1.25"
+  build-tags: []
+  modules-download-mode: readonly
+  tests: true
+  allow-parallel-runners: true
+
+output:
+  formats:
+    text:
+      path: stdout
+      print-issued-lines: true
+      print-linter-name: true
+  sort-order:
+    - linter
+    - file
+
+linters:
+  # Enable every upstream linter, then turn off only the ones that conflict
+  # with idiomatic Go or this project's style.
+  default: all
+  disable:
+    # --- Style/formatting pedantry that fights idiomatic Go ----------------
+    - wsl              # deprecated
+
+    # --- Opinionated structural rules that don't fit the project ----------
+    - exhaustruct      # demands every struct field be set on construction
+    - tagliatelle      # JSON/YAML tag casing — no API JSON in this repo
+    - nonamedreturns   # GetMigrations uses named returns intentionally
+    - ireturn          # we return concrete types and accept interfaces — fine
+    - depguard         # requires explicit dep allowlist; we have none
+
+    # --- Sentinel errors and `version` are legitimate package-level vars --
+    - gochecknoglobals
+
+    # --- Over-restrictive error handling rules ----------------------------
+    - err113           # forbids errors.New at call site; we use sentinels
+    - noinlineerr      # bans `if err := f(); err != nil` — standard Go idiom
+
+    # --- Deprecated/replaced in v2.12 -------------------------------------
+    - gomodguard       # replaced by gomodguard_v2; we have no module guards
+
+  settings:
+    cyclop:
+      max-complexity: 15
+      package-average: 10.0
+    gocyclo:
+      min-complexity: 15
+    gocognit:
+      min-complexity: 25
+    goconst:
+      min-occurrences: 3
+      min-len: 3
+    funlen:
+      lines: 120
+      statements: 60
+    lll:
+      line-length: 140
+      tab-width: 4
+    nestif:
+      min-complexity: 5
+    maintidx:
+      under: 20
+    revive:
+      severity: warning
+      enable-all-rules: false
+      rules:
+        - name: var-naming
+        - name: exported
+        - name: error-return
+        - name: error-naming
+        - name: error-strings
+        - name: errorf
+        - name: if-return
+        - name: var-declaration
+        - name: receiver-naming
+        - name: indent-error-flow
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+        - name: range
+        - name: time-naming
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: bool-literal-in-expr
+        - name: confusing-naming
+        - name: confusing-results
+        - name: early-return
+    gosec:
+      excludes:
+        # G115: integer overflow on conversions — too many false positives
+        - G115
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+        - opinionated
+      disabled-checks:
+        - hugeParam     # we deliberately pass small structs by value sometimes
+        - whyNoLint
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment  # micro-optimization noise; not worth the churn
+    nakedret:
+      max-func-lines: 30
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-no-explanation: []
+    mnd:
+      checks:
+        - argument
+        - case
+        - condition
+        - operation
+        - return
+        - assign
+      ignored-numbers:
+        - "0"
+        - "1"
+        - "2"
+        - "3"
+        - "10"
+        - "60"
+        - "100"
+      ignored-functions:
+        - 'strconv\.'
+        - 'time\.(Second|Millisecond|Minute|Hour|Duration)'
+    sloglint:
+      no-mixed-args: true
+      kv-only: false
+      attr-only: false
+      context: scope
+      static-msg: true
+      key-naming-case: snake
+    iface:
+      enable:
+        - identical
+        - opaque
+        - unused
+    wrapcheck:
+      # wrapcheck treats every other package as "external", including our own
+      # internal/ ones. Errors crossing those boundaries are already wrapped with
+      # context where they originate, so re-wrapping them at each hop only
+      # produces "get migrations: get migrations: ..." chains. The linter earns
+      # its keep on genuinely third-party errors, so scope it to those.
+      ignore-package-globs:
+        - github.com/eidon-go/pg-migrate
+        - github.com/eidon-go/pg-migrate/**
+    varnamelen:
+      # Short names are fine as long as the declaration stays close to the use.
+      max-distance: 8
+      ignore-type-assert-ok: true
+      ignore-map-index-ok: true
+      ignore-chan-recv-ok: true
+      ignore-names:
+        # --- loop / index counters ------------------------------------------
+        - i
+        - j
+        - k
+        - n
+        # --- conventional single-letter locals ------------------------------
+        - b   # strings.Builder / []byte
+        - c   # byte (char)
+        - e   # executor / element
+        - f   # file / func value
+        - m   # map entry / migration / model
+        - r   # reader
+        - s   # string
+        - t   # *testing.T
+        - v   # generic value
+        - w   # writer
+        # --- domain and stdlib idioms ---------------------------------------
+        - db  # *sql.DB
+        - tx  # *sql.Tx
+        - pg  # *db.Postgres
+        - id  # migration identifier
+        - up  # up-script of a migration pair
+        - fn  # callback
+        - ok
+        - err
+        - eg  # errgroup
+        - wg  # sync.WaitGroup
+        - mu  # sync.Mutex
+        - ch  # channel
+        # --- table-driven test idioms ---------------------------------------
+        - tt
+        - tc
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+
+    rules:
+      # Test files: relax complexity, duplication and a few error-handling
+      # nags. Test code is allowed to be verbose and fixture-heavy.
+      - path: _test\.go
+        linters:
+          - funlen
+          - gocyclo
+          - cyclop
+          - gocognit
+          - maintidx
+          - dupl
+          - goconst
+          - gosec
+          - errcheck
+          - noctx
+          - mnd
+          - lll
+          - revive
+          - forcetypeassert
+          - containedctx
+          - nestif
+          - wrapcheck  # test helpers surface errors to t.Fatal, not to callers
+
+      # Integration test helpers: shared postgres setup/teardown, intentional
+      # t.Fatal-style error handling. Build-tag gated ("integration").
+      - path: test/dbtest/
+        linters:
+          - gosec
+          - errcheck
+          - revive
+          - forbidigo
+          - wrapcheck
+
+      # Examples are teaching material: they print to stdout, hardcode table
+      # names, and stay linear so the point survives the plumbing.
+      - path: examples/
+        linters:
+          - forbidigo
+          - mnd
+          - goconst
+          - gosec
+          - errcheck
+          - dupl
+          - funlen
+          - cyclop
+          - gocognit
+
+      # CLI entrypoint: cobra plumbing is naturally long and branchy.
+      - path: cmd/migrate/main\.go
+        linters:
+          - funlen
+          - gocyclo
+          - cyclop
+          - gocognit
+          - maintidx
+          - nestif
+          - forbidigo  # fmt.Println in plan output is intentional
+
+      # CustomExecutor: SQL plumbing with many similar methods.
+      - path: internal/migrator/custom_executor\.go
+        linters:
+          - funlen
+          - gocyclo
+          - cyclop
+          - gocognit
+          - dupl
+
+      # The migrations table init query is naturally inlined SQL.
+      - path: internal/db/postgres\.go
+        linters:
+          - gosec  # G201: SQL string concat — we use parameterized queries
+
+      # White-box tests that exercise unexported helpers (parseDirectives,
+      # splitSQLStatements, endsWithSemicolon, quoteIdentifier). Must live in
+      # the same package.
+      - path: internal/migrator/(sqlparse|fuzz)_test\.go
+        linters:
+          - testpackage
+
+      # Allow Println in the CLI plan-output path.
+      - source: 'fmt\.Print'
+        path: cmd/migrate/
+        linters:
+          - forbidigo
+
+      # Stdlib SQL closers in tests: defer rows.Close() is fine even if it
+      # technically returns an error.
+      - source: 'defer .+\.Close\(\)'
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+    - gci
+  settings:
+    gofumpt:
+      module-path: github.com/eidon-go/pg-migrate
+      extra-rules: true
+    goimports:
+      local-prefixes:
+        - github.com/eidon-go/pg-migrate
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/eidon-go/pg-migrate)
+      custom-order: true
