@@ -485,6 +485,9 @@ stored rollback script.`,
 	}
 	rootCmd.AddCommand(forgetCmd)
 
+	// 7. new command — scaffolds files, never touches the database.
+	rootCmd.AddCommand(newCommand(resolvePath))
+
 	if err := rootCmd.Execute(); err != nil {
 		return fmt.Errorf("execute command: %w", err)
 	}
