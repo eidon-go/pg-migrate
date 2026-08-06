@@ -1,0 +1,89 @@
+site_name: pg-migrate
+site_description: A small, dependency-light PostgreSQL migration library and CLI for Go
+site_author: Siarhei Slanimski
+site_url: https://eidon-go.github.io/pg-migrate/
+
+repo_name: eidon-go/pg-migrate
+repo_url: https://github.com/eidon-go/pg-migrate
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2026 Siarhei Slanimski — MIT License
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - search.highlight
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Guide:
+      - Migration files: migrations.md
+      - Concepts: concepts.md
+      - Database privileges: permissions.md
+      - Recipes: recipes.md
+      - Troubleshooting: troubleshooting.md
+  - Reference:
+      - Library API: api.md
+      - CLI: cli.md
+      - Versioning: versioning.md
+  - Project:
+      - Changelog: changelog.md
+      - Contributing: contributing.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  # Required for the "grid cards" block on the home page — without it the
+  # markdown inside the <div> is emitted verbatim.
+  - md_in_html
+  - def_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  # base_path reaches the repository root so CONTRIBUTING.md and the generated
+  # CHANGELOG.md are included on the site rather than duplicated into docs/.
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/eidon-go/pg-migrate
+    - icon: fontawesome/brands/golang
+      link: https://pkg.go.dev/github.com/eidon-go/pg-migrate

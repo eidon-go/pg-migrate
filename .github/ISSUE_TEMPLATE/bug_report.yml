@@ -1,0 +1,81 @@
+name: Bug report
+description: Something behaves differently from what the documentation says
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. If the database ended up in a state you did not
+        expect, the output of `migrate status --json` is the single most useful
+        thing you can attach.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you observe, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: >-
+        The smallest migration pair and sequence of calls that reproduces it.
+        Include the `.up.sql` / `.down.sql` contents if they matter.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: pg-migrate version
+      placeholder: v0.1.0 (or a commit SHA)
+    validations:
+      required: true
+
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+      placeholder: go1.25.3
+    validations:
+      required: true
+
+  - type: input
+    id: postgres-version
+    attributes:
+      label: PostgreSQL version
+      placeholder: "16.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Used as
+      options:
+        - Library
+        - CLI
+        - Both
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output. Redact any credentials first.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: The pool allows at least 2 open connections (`SetMaxOpenConns`)
+          required: false
+        - label: I searched existing issues
+          required: true

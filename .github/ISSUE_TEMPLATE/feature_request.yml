@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest a capability the library or CLI does not have
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >-
+        What are you trying to do that is awkward or impossible today? Describe
+        the situation rather than the solution — it often has more than one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What you have in mind. A sketch of the API is welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you tried, and why they fall short.
+
+  - type: dropdown
+    id: breaking
+    attributes:
+      label: Would this change existing behaviour?
+      options:
+        - "No — purely additive"
+        - "Yes — it changes what current code does"
+        - "Not sure"
+    validations:
+      required: true

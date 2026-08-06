@@ -1,0 +1,8 @@
+# Documentation toolchain — pinned so a docs build is reproducible.
+# These exact versions are verified to build the site with `mkdocs build --strict`.
+#
+# mkdocs is held below 2.0 deliberately: mkdocs-material does not support it yet.
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+pymdown-extensions==11.0.1
+pygments==2.20.0

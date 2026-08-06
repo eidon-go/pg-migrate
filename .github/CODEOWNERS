@@ -1,0 +1,8 @@
+# Code owners are requested for review automatically on every pull request.
+# See https://docs.github.com/articles/about-code-owners
+#
+# An owner must have write access to the repository for the rule to take effect.
+# Switch to a team handle (@eidon-go/maintainers) once there is more than one
+# maintainer — an individual handle stops working the day they step away.
+
+* @sergeyslonimsky
