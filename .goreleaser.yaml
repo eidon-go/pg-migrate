@@ -1,0 +1,99 @@
+version: 2
+
+project_name: pg-migrate
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - id: migrate
+    main: ./cmd/migrate
+    binary: migrate
+    env:
+      # Statically linked, so the binary runs on scratch and alpine images.
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      # No demand for 32-bit or Windows/arm64; keeps the release page readable.
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: default
+    ids: [migrate]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+sboms:
+  - artifacts: archive
+
+# The CLI is most often run as a Kubernetes init container, so a multi-arch
+# image matters — the arch has to match the node. dockers_v2 builds every
+# platform and assembles the manifest itself.
+dockers_v2:
+  - id: migrate
+    ids: [migrate]
+    dockerfile: Dockerfile.goreleaser
+    images:
+      - ghcr.io/eidon-go/pg-migrate
+    tags:
+      - "{{ .Version }}"
+      # An empty tag is ignored, so `latest` follows stable releases only —
+      # a prerelease must not move it.
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.description: "PostgreSQL migration library and CLI"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.source: "https://github.com/eidon-go/pg-migrate"
+      org.opencontainers.image.licenses: MIT
+    annotations:
+      org.opencontainers.image.base.name: "{{ .BaseImage }}"
+
+# The changelog shipped with the release comes from git-cliff via
+# --release-notes, so GoReleaser must not build one of its own.
+changelog:
+  disable: true
+
+release:
+  github:
+    owner: eidon-go
+    name: pg-migrate
+  prerelease: auto
+  footer: |
+    ---
+
+    **Full changelog**: https://github.com/eidon-go/pg-migrate/blob/main/CHANGELOG.md
+
+    Install the CLI:
+
+    ```bash
+    go install github.com/eidon-go/pg-migrate/cmd/migrate@{{ .Tag }}
+    ```

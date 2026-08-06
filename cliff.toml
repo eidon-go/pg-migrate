@@ -1,0 +1,83 @@
+# git-cliff configuration — https://git-cliff.org/docs/configuration
+#
+# The changelog is generated from Conventional Commits. A commit that does not
+# parse as one is skipped rather than dumped into an "Other" bucket: the
+# changelog is a document for users, not a mirror of the git log.
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to this project are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n
+"""
+
+body = """
+{% if version %}\
+    ## [{{ version | trim_start_matches(pat="v") }}](<REPO>/releases/tag/{{ version }}) — {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+    ## Unreleased
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+    ### {{ group | striptags | trim | upper_first }}
+    {% for commit in commits %}
+        - {% if commit.scope %}**{{ commit.scope }}**: {% endif %}{{ commit.message | upper_first }}{% if commit.remote.username %} by @{{ commit.remote.username }}{% endif %} ([{{ commit.id | truncate(length=7, end="") }}](<REPO>/commit/{{ commit.id }}))
+    {% endfor %}
+{% endfor %}\n
+"""
+
+footer = """
+{% for release in releases -%}
+    {% if release.version -%}
+        {% if release.previous.version -%}
+            [{{ release.version | trim_start_matches(pat="v") }}]: \
+                <REPO>/compare/{{ release.previous.version }}...{{ release.version }}
+        {% endif -%}
+    {% endif -%}
+{% endfor %}
+"""
+
+trim = true
+postprocessors = [
+  { pattern = '<REPO>', replace = "https://github.com/eidon-go/pg-migrate" },
+]
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+protect_breaking_commits = true
+filter_commits = true
+topo_order = false
+sort_commits = "newest"
+
+commit_parsers = [
+  { message = "^feat", group = "<!-- 0 -->Features" },
+  { message = "^fix", group = "<!-- 1 -->Bug Fixes" },
+  { message = "^perf", group = "<!-- 2 -->Performance" },
+  { message = "^refactor", group = "<!-- 3 -->Refactor" },
+  { message = "^docs", group = "<!-- 4 -->Documentation" },
+  { message = "^test", group = "<!-- 5 -->Testing" },
+  { message = "^build", group = "<!-- 6 -->Build System" },
+  { message = "^ci", group = "<!-- 7 -->CI" },
+
+  # Housekeeping that users do not need to read about.
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "^chore\\(deps\\)", skip = true },
+  { message = "^docs\\(changelog\\)", skip = true },
+  { message = "^chore", group = "<!-- 8 -->Miscellaneous" },
+  { message = "^style", skip = true },
+
+  { body = ".*security", group = "<!-- 9 -->Security" },
+]
+
+commit_preprocessors = [
+  # Link bare issue references so the changelog is navigable on the release page.
+  { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/eidon-go/pg-migrate/issues/${2}))" },
+]
+
+tag_pattern = "v[0-9].*"
+skip_tags = ""
+ignore_tags = ""
