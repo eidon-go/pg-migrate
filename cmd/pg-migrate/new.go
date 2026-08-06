@@ -110,7 +110,12 @@ func newCommand(resolvePath func() (string, error)) *cobra.Command {
 
 			// UTC, not local time: a team spread across time zones would
 			// otherwise generate IDs that sort in an order nobody intended.
-			id := time.Now().UTC().Format(timestampLayout) + "_" + slug
+			stamp, err := availableTimestamp(dir, time.Now().UTC())
+			if err != nil {
+				return err
+			}
+
+			id := stamp + "_" + slug
 
 			created, err := writeMigrationPair(dir, id, slug, opts)
 			if err != nil {
@@ -169,6 +174,48 @@ func (o migrationTemplateOptions) downContent(slug string) string {
 	default:
 		return fmt.Sprintf(downTemplate, slug)
 	}
+}
+
+// availableTimestamp returns a timestamp no migration in dir already uses,
+// advancing a second at a time until it finds one.
+//
+// Two migrations created in the same second would otherwise share a prefix, and
+// the tie would be broken by the slug — so `new create_users` followed by
+// `new add_posts` would order add_posts first, silently reversing the order they
+// were written in. Rare when typing by hand, routine in a script.
+//
+// A missing directory means nothing is taken; it is created later by
+// writeMigrationPair.
+func availableTimestamp(dir string, now time.Time) (string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return now.Format(timestampLayout), nil
+		}
+
+		return "", fmt.Errorf("read migration directory %s: %w", dir, err)
+	}
+
+	taken := make(map[string]bool, len(entries))
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		if len(name) >= len(timestampLayout) {
+			taken[name[:len(timestampLayout)]] = true
+		}
+	}
+
+	stamp := now.Format(timestampLayout)
+	for taken[stamp] {
+		now = now.Add(time.Second)
+		stamp = now.Format(timestampLayout)
+	}
+
+	return stamp, nil
 }
 
 // writeMigrationPair creates both halves, refusing to overwrite either. If the

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/eidon-go/pg-migrate/internal/migrator"
 	"github.com/eidon-go/pg-migrate/internal/source"
@@ -184,6 +185,61 @@ func TestIrreversibleDownHasNoBody(t *testing.T) {
 
 	if strings.TrimSpace(body) != "" {
 		t.Errorf("body must be empty, got %q", body)
+	}
+}
+
+// Two migrations created in the same second must not share a prefix: the tie
+// would be broken by the slug, silently reversing the order they were written
+// in. `new create_users` then `new add_posts` would order add_posts first.
+func TestAvailableTimestampAvoidsCollisions(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	now := time.Date(2026, 8, 6, 12, 0, 0, 0, time.UTC)
+
+	first, err := availableTimestamp(dir, now)
+	if err != nil {
+		t.Fatalf("availableTimestamp: %v", err)
+	}
+
+	if first != "20260806120000" {
+		t.Fatalf("first = %q, want 20260806120000", first)
+	}
+
+	if _, writeErr := writeMigrationPair(dir, first+"_create_users", "create_users",
+		migrationTemplateOptions{}); writeErr != nil {
+		t.Fatalf("writeMigrationPair: %v", writeErr)
+	}
+
+	// Same wall-clock second, so the timestamp has to move on.
+	second, err := availableTimestamp(dir, now)
+	if err != nil {
+		t.Fatalf("availableTimestamp: %v", err)
+	}
+
+	if second != "20260806120001" {
+		t.Errorf("second = %q, want 20260806120001", second)
+	}
+
+	// The IDs must sort in creation order despite the alphabetically earlier slug.
+	firstID, secondID := first+"_create_users", second+"_add_posts"
+	if firstID >= secondID {
+		t.Errorf("%q does not sort before %q", firstID, secondID)
+	}
+}
+
+func TestAvailableTimestampOnMissingDirectory(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 6, 12, 0, 0, 0, time.UTC)
+
+	stamp, err := availableTimestamp(filepath.Join(t.TempDir(), "does", "not", "exist"), now)
+	if err != nil {
+		t.Fatalf("availableTimestamp: %v", err)
+	}
+
+	if stamp != "20260806120000" {
+		t.Errorf("stamp = %q, want 20260806120000", stamp)
 	}
 }
 
