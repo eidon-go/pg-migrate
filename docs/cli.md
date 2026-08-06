@@ -1,7 +1,7 @@
 # CLI
 
 ```bash
-go install github.com/eidon-go/pg-migrate/cmd/migrate@latest
+go install github.com/eidon-go/pg-migrate/cmd/pg-migrate@latest
 ```
 
 Or download a static binary from the
@@ -13,8 +13,8 @@ with `CGO_ENABLED=0`, so it runs on `scratch` and `alpine` images unchanged.
 ### new
 
 ```bash
-migrate new add_users_table
-migrate new "backfill user emails"
+pg-migrate new add_users_table
+pg-migrate new "backfill user emails"
 ```
 
 Creates a `.up.sql`/`.down.sql` pair named `<utc-timestamp>_<slug>`, in
@@ -28,7 +28,7 @@ file is never overwritten.
 ### up
 
 ```bash
-migrate up
+pg-migrate up
 ```
 
 Applies pending migrations forward. Extras in the database are left alone and
@@ -37,9 +37,9 @@ reported. The safe default for a deployment.
 ### reconcile
 
 ```bash
-migrate reconcile
-migrate reconcile -r    # --allow-rollback: roll back migrations missing from files
-migrate reconcile -i    # --allow-interleaved: apply out-of-order migrations
+pg-migrate reconcile
+pg-migrate reconcile -r    # --allow-rollback: roll back migrations missing from files
+pg-migrate reconcile -i    # --allow-interleaved: apply out-of-order migrations
 ```
 
 Makes the database match the files. Without `-r` it refuses when that would
@@ -48,8 +48,8 @@ require rolling something back.
 ### down
 
 ```bash
-migrate down 2      # the last two, most recent first
-migrate down all    # everything
+pg-migrate down 2      # the last two, most recent first
+pg-migrate down all    # everything
 ```
 
 Uses the rollback scripts stored in the database, so it works even when the
@@ -58,8 +58,8 @@ migration files are not present.
 ### plan
 
 ```bash
-migrate plan
-migrate plan --json
+pg-migrate plan
+pg-migrate plan --json
 ```
 
 What a `reconcile` would do. Takes no lock, changes nothing, needs no DDL
@@ -69,8 +69,8 @@ rollbacks does not mean the command would succeed.
 ### status
 
 ```bash
-migrate status
-migrate status --json
+pg-migrate status
+pg-migrate status --json
 ```
 
 What is recorded as applied, in application order. For a failed migration this is
@@ -79,7 +79,7 @@ where you find the recorded error and the stored rollback script.
 ### forget
 
 ```bash
-migrate forget 20260210091500_email_index
+pg-migrate forget 20260210091500_email_index
 ```
 
 Drops a bookkeeping row **without running its rollback**. The escape hatch after
@@ -132,8 +132,8 @@ instance is mid-migration and waiting it out beats failing the rollout.
 
 ```dockerfile
 FROM scratch
-COPY migrate /migrate
-ENTRYPOINT ["/migrate"]
+COPY pg-migrate /pg-migrate
+ENTRYPOINT ["/pg-migrate"]
 ```
 
 ```bash

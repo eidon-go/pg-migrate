@@ -43,7 +43,7 @@ go get github.com/eidon-go/pg-migrate
 As a CLI:
 
 ```bash
-go install github.com/eidon-go/pg-migrate/cmd/migrate@latest
+go install github.com/eidon-go/pg-migrate/cmd/pg-migrate@latest
 ```
 
 Or grab a static binary from the [releases page](https://github.com/eidon-go/pg-migrate/releases)
@@ -101,7 +101,7 @@ More in [`examples/`](examples/).
 ## Migration files
 
 ```bash
-migrate new create_users
+pg-migrate new create_users
 ```
 
 Each migration is a pair of files sharing a base name, which becomes the ID:
@@ -173,15 +173,15 @@ Full reference on [pkg.go.dev](https://pkg.go.dev/github.com/eidon-go/pg-migrate
 ## CLI
 
 ```bash
-migrate new add_users_table     # scaffold a timestamped up/down pair
-migrate up                      # apply pending migrations
-migrate reconcile               # make the DB match the files
-migrate reconcile -r            # ...allowing rollback of extras
-migrate down 2                  # roll back the last two
-migrate down all                # roll back everything
-migrate plan --json             # what reconcile would do, no changes
-migrate status --json           # what is recorded as applied
-migrate forget 20260210091500_bad_index   # drop a row without running its rollback
+pg-migrate new add_users_table     # scaffold a timestamped up/down pair
+pg-migrate up                      # apply pending migrations
+pg-migrate reconcile               # make the DB match the files
+pg-migrate reconcile -r            # ...allowing rollback of extras
+pg-migrate down 2                  # roll back the last two
+pg-migrate down all                # roll back everything
+pg-migrate plan --json             # what reconcile would do, no changes
+pg-migrate status --json           # what is recorded as applied
+pg-migrate forget 20260210091500_bad_index   # drop a row without running its rollback
 ```
 
 Configuration comes from environment variables, overridable by flags:

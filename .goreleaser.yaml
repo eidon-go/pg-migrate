@@ -8,9 +8,9 @@ before:
     - go mod download
 
 builds:
-  - id: migrate
-    main: ./cmd/migrate
-    binary: migrate
+  - id: pg-migrate
+    main: ./cmd/pg-migrate
+    binary: pg-migrate
     env:
       # Statically linked, so the binary runs on scratch and alpine images.
       - CGO_ENABLED=0
@@ -32,7 +32,7 @@ builds:
 
 archives:
   - id: default
-    ids: [migrate]
+    ids: [pg-migrate]
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     formats: [tar.gz]
@@ -53,8 +53,8 @@ sboms:
 # image matters — the arch has to match the node. dockers_v2 builds every
 # platform and assembles the manifest itself.
 dockers_v2:
-  - id: migrate
-    ids: [migrate]
+  - id: pg-migrate
+    ids: [pg-migrate]
     dockerfile: Dockerfile.goreleaser
     images:
       - ghcr.io/eidon-go/pg-migrate
@@ -95,5 +95,5 @@ release:
     Install the CLI:
 
     ```bash
-    go install github.com/eidon-go/pg-migrate/cmd/migrate@{{ .Tag }}
+    go install github.com/eidon-go/pg-migrate/cmd/pg-migrate@{{ .Tag }}
     ```

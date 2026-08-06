@@ -12,7 +12,7 @@ will not guess its way out of that.
 ### 1. Find out what happened
 
 ```bash
-migrate status --json | jq '.[] | select(.failed)'
+pg-migrate status --json | jq '.[] | select(.failed)'
 ```
 
 ```json
@@ -45,7 +45,7 @@ DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;
 ### 3. Clear the row
 
 ```bash
-migrate forget 20260401093000_users_email_index
+pg-migrate forget 20260401093000_users_email_index
 ```
 
 This touches only the ledger. Normal operation resumes on the next run.
@@ -126,7 +126,7 @@ branch.
 - Deploying older code on purpose? Use `Up` — it leaves extras alone.
 - Really want them gone? `Reconcile` with `WithRollback()`.
 - Neither? Someone applied a migration from a branch that never merged. Find out
-  which before doing anything: `migrate plan --json | jq .to_rollback`.
+  which before doing anything: `pg-migrate plan --json | jq .to_rollback`.
 
 ## ErrInterleaved
 
@@ -144,7 +144,7 @@ database and the ledger now disagree.
 
 This needs a human. Compare the actual schema against what the migration
 intended, then either finish the job and let the row be written on a retry, or
-undo the change by hand. `migrate status` shows what the ledger currently
+undo the change by hand. `pg-migrate status` shows what the ledger currently
 believes.
 
 ## Editing a migration file changes nothing
@@ -153,7 +153,7 @@ Working as designed. Rollback scripts are read from the database, and an applied
 migration's row is never rewritten from the file.
 
 To change applied schema, write a new migration. To fix a migration that was just
-applied in development, roll it back first (`migrate down 1`), then edit and
+applied in development, roll it back first (`pg-migrate down 1`), then edit and
 re-apply.
 
 ## Migrations run but the table is not found
@@ -171,7 +171,7 @@ migrate.WithSchema("public")
 ## Getting more detail
 
 ```bash
-migrate up --log-level debug --log-format json
+pg-migrate up --log-level debug --log-format json
 ```
 
 ```go
@@ -183,5 +183,5 @@ migrate.Up(ctx, db, fsys, migrate.WithLogger(logger))
 ```
 
 Still stuck? [Open an issue](https://github.com/eidon-go/pg-migrate/issues/new/choose)
-with the output of `migrate status --json` and the migration pair that
+with the output of `pg-migrate status --json` and the migration pair that
 reproduces it.

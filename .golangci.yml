@@ -250,7 +250,7 @@ linters:
           - gocognit
 
       # CLI entrypoint: cobra plumbing is naturally long and branchy.
-      - path: cmd/migrate/main\.go
+      - path: cmd/pg-migrate/main\.go
         linters:
           - funlen
           - gocyclo
@@ -283,7 +283,7 @@ linters:
 
       # Allow Println in the CLI plan-output path.
       - source: 'fmt\.Print'
-        path: cmd/migrate/
+        path: cmd/pg-migrate/
         linters:
           - forbidigo
 

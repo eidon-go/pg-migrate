@@ -141,7 +141,7 @@ if len(analysis.ToRollback) > 0 {
 From a shell:
 
 ```bash
-migrate plan --json | jq -e '.blocked == false and (.to_rollback | length) == 0'
+pg-migrate plan --json | jq -e '.blocked == false and (.to_rollback | length) == 0'
 ```
 
 ## Zero-downtime index creation

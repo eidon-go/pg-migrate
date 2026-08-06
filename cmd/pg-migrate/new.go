@@ -65,8 +65,8 @@ func newCommand(resolvePath func() (string, error)) *cobra.Command {
 		Long: "Create a timestamped .up.sql/.down.sql pair.\n\n" +
 			"The name is slugified and prefixed with a UTC timestamp, so that IDs sort\n" +
 			"chronologically and two people working in parallel cannot collide.",
-		Example: "  migrate new add_users_table\n" +
-			"  migrate new \"backfill user emails\" --migration-path ./db/migrations",
+		Example: "  pg-migrate new add_users_table\n" +
+			"  pg-migrate new \"backfill user emails\" --migration-path ./db/migrations",
 		Args:          cobra.ExactArgs(1),
 		SilenceUsage:  true,
 		SilenceErrors: true,

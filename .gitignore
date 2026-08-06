@@ -3,7 +3,7 @@
 .vscode/
 
 # Build output
-/migrate
+/pg-migrate
 /dist/
 vendor/
 

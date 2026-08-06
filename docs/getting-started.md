@@ -11,7 +11,7 @@
 === "CLI (go install)"
 
     ```bash
-    go install github.com/eidon-go/pg-migrate/cmd/migrate@latest
+    go install github.com/eidon-go/pg-migrate/cmd/pg-migrate@latest
     ```
 
 === "CLI (binary)"
@@ -22,14 +22,14 @@
 
     ```bash
     tar -xzf pg-migrate_0.1.0_linux_amd64.tar.gz
-    sudo mv migrate /usr/local/bin/
+    sudo mv pg-migrate /usr/local/bin/
     ```
 
 ## Write your first migration
 
 ```bash
 export MIGRATION_PATH=./migrations
-migrate new create_users
+pg-migrate new create_users
 ```
 
 ```
@@ -106,14 +106,14 @@ func main() {
 export DATABASE_URL="postgres://user:pass@localhost:5432/app?sslmode=disable"
 export MIGRATION_PATH=./migrations
 
-migrate up
+pg-migrate up
 ```
 
 Look before you leap:
 
 ```bash
-migrate plan --json     # what a reconcile would do; changes nothing
-migrate status --json   # what is recorded as applied
+pg-migrate plan --json     # what a reconcile would do; changes nothing
+pg-migrate status --json   # what is recorded as applied
 ```
 
 ## Choosing between Up and Reconcile

@@ -1,4 +1,4 @@
-.PHONY: all check build migrate test test-race test-integration fuzz compose-up compose-down \
+.PHONY: all check build pg-migrate test test-race test-integration fuzz compose-up compose-down \
         lint lint-fix vuln align align-fix nilaway tidy-check fmt fmt-check tidy docs docs-build \
         changelog release-check clean
 
@@ -23,8 +23,8 @@ build:
 	$(GO) build -v -ldflags "$(LDFLAGS)" ./...
 
 # The CLI binary, with the version stamped in.
-migrate:
-	$(GO) build -ldflags "$(LDFLAGS)" -o migrate ./cmd/migrate
+pg-migrate:
+	$(GO) build -ldflags "$(LDFLAGS)" -o pg-migrate ./cmd/pg-migrate
 
 # Fast unit tests. No Docker required.
 test:
@@ -119,6 +119,6 @@ release-check:
 	$(GO) run github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION) release --snapshot --clean
 
 clean:
-	rm -f migrate
+	rm -f pg-migrate
 	rm -rf dist site
 	$(GO) clean -testcache

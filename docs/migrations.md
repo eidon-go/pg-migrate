@@ -3,7 +3,7 @@
 ## Creating a migration
 
 ```bash
-migrate new add_users_table
+pg-migrate new add_users_table
 ```
 
 ```
@@ -38,7 +38,7 @@ Rules the loader enforces:
 - **Both halves are required.** A missing `.down.sql` is an error, not an empty
   rollback. If a migration genuinely cannot be undone, say so explicitly with the
   [`irreversible`](#irreversible) directive.
-- **IDs sort lexicographically**, never numerically. `migrate new` handles this
+- **IDs sort lexicographically**, never numerically. `pg-migrate new` handles this
   for you; see [Why timestamps](#why-timestamps) if you name files by hand.
 - **Non-`.sql` files are ignored.** A `.sql` file that is neither `*.up.sql` nor
   `*.down.sql` is an error rather than a silent skip.
@@ -75,7 +75,7 @@ people cannot collide unless they run `new` in the same second.
     sorted: 0001_seq  0002_seq  20260806120000_ts
     ```
 
-    Start using `migrate new` whenever you like. Already applied migrations keep
+    Start using `pg-migrate new` whenever you like. Already applied migrations keep
     their IDs, their stored rollback scripts, and their place in the order.
 
 Timestamps do not avoid [interleaved migrations](concepts.md#interleaved-migrations)

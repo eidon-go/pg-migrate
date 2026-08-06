@@ -40,7 +40,7 @@ func run() error {
 	)
 
 	rootCmd := &cobra.Command{
-		Use:           "migrate",
+		Use:           "pg-migrate",
 		Short:         "Database migration tool",
 		Version:       version,
 		SilenceUsage:  true,
