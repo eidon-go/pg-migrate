@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Lets a run be started by hand when a push event was lost — GitHub throttles
+  # webhooks during an Actions incident, and a branch can otherwise sit with no
+  # checks at all.
+  workflow_dispatch:
 
 # A new push to a PR makes the in-flight run obsolete. main is never cancelled:
 # its runs are what the release job's history is read from.
