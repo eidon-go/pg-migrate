@@ -49,6 +49,38 @@ checksum:
 sboms:
   - artifacts: archive
 
+# Keyless signing through Sigstore: the workflow's OIDC identity is bound into a
+# short-lived certificate and recorded in the public Rekor log, so there is no
+# private key to store, rotate or lose.
+#
+# Only checksums.txt is signed — every artifact is listed in it with its hash,
+# so one signature covers the whole release and verification stays a two-step
+# check anyone can follow.
+signs:
+  - cmd: cosign
+    # cosign v3 replaced the separate .sig/.pem pair with a single bundle that
+    # carries the signature, the certificate and the Rekor inclusion proof.
+    # --output-signature and --output-certificate are deprecated and now refuse
+    # to run alongside the new format.
+    signature: "${artifact}.bundle"
+    args:
+      - sign-blob
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+    output: true
+
+# Images are signed by digest, which is what a deployment actually pulls.
+docker_signs:
+  - cmd: cosign
+    args:
+      - sign
+      - "--yes"
+      - "${artifact}"
+    artifacts: all
+    output: true
+
 # The CLI is most often run as a Kubernetes init container, so a multi-arch
 # image matters — the arch has to match the node. dockers_v2 builds every
 # platform and assembles the manifest itself.
@@ -96,4 +128,28 @@ release:
 
     ```bash
     go install github.com/eidon-go/pg-migrate/cmd/pg-migrate@{{ .Tag }}
+    ```
+
+    ### Verifying this release
+
+    Artifacts are signed with [cosign](https://docs.sigstore.dev/) keyless: no
+    private key exists, the signature is bound to this workflow's identity and
+    recorded in the public Rekor transparency log.
+
+    ```bash
+    cosign verify-blob checksums.txt \
+      --bundle checksums.txt.bundle \
+      --certificate-identity-regexp '^https://github\.com/eidon-go/pg-migrate/\.github/workflows/release\.yml@refs/tags/' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+    # then check the archive against the verified checksums
+    sha256sum --check --ignore-missing checksums.txt
+    ```
+
+    The container image is signed by digest:
+
+    ```bash
+    cosign verify ghcr.io/eidon-go/pg-migrate:{{ .Version }} \
+      --certificate-identity-regexp '^https://github\.com/eidon-go/pg-migrate/\.github/workflows/release\.yml@refs/tags/' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com
     ```
