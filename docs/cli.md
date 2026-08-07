@@ -8,6 +8,38 @@ Or download a static binary from the
 [releases page](https://github.com/eidon-go/pg-migrate/releases). It is built
 with `CGO_ENABLED=0`, so it runs on `scratch` and `alpine` images unchanged.
 
+### Verifying a release
+
+Releases are signed with [cosign](https://docs.sigstore.dev/) in keyless mode:
+there is no private key anywhere, the signature is bound to the release
+workflow's identity and logged in the public Rekor transparency log.
+
+```bash
+cosign verify-blob checksums.txt \
+  --bundle checksums.txt.bundle \
+  --certificate-identity-regexp '^https://github\.com/eidon-go/pg-migrate/\.github/workflows/release\.yml@refs/tags/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+sha256sum --check --ignore-missing checksums.txt
+```
+
+Verifying `checksums.txt` covers every artifact in the release, since each one
+is listed there with its hash. The container image is signed separately, by
+digest:
+
+```bash
+cosign verify ghcr.io/eidon-go/pg-migrate:0.1.0 \
+  --certificate-identity-regexp '^https://github\.com/eidon-go/pg-migrate/\.github/workflows/release\.yml@refs/tags/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+!!! note "Pin the identity, not just the signature"
+
+    Without `--certificate-identity-regexp` cosign will accept *any* valid
+    Sigstore signature, including one someone else made for their own artifact.
+    The identity is what ties the signature to this repository's release
+    workflow.
+
 ## Commands
 
 ### new
