@@ -1,16 +1,16 @@
 # Built by GoReleaser from an already-compiled binary — see .goreleaser.yaml.
-# For a from-source build use `make migrate`.
+# For a from-source build use `make pg-migrate`.
 FROM gcr.io/distroless/static-debian12:nonroot
 
 # dockers_v2 lays the build context out per platform, so the binary is under
 # the target platform's directory rather than at the root.
 ARG TARGETPLATFORM
-COPY $TARGETPLATFORM/migrate /migrate
+COPY $TARGETPLATFORM/pg-migrate /pg-migrate
 
 # Migrations are mounted, not baked in: the same image serves every service.
 VOLUME ["/migrations"]
 ENV MIGRATION_PATH=/migrations
 
 USER nonroot:nonroot
-ENTRYPOINT ["/migrate"]
+ENTRYPOINT ["/pg-migrate"]
 CMD ["--help"]

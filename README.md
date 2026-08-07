@@ -43,7 +43,7 @@ go get github.com/eidon-go/pg-migrate
 As a CLI:
 
 ```bash
-go install github.com/eidon-go/pg-migrate/cmd/migrate@latest
+go install github.com/eidon-go/pg-migrate/cmd/pg-migrate@latest
 ```
 
 Or grab a static binary from the [releases page](https://github.com/eidon-go/pg-migrate/releases)
@@ -100,19 +100,27 @@ More in [`examples/`](examples/).
 
 ## Migration files
 
+```bash
+pg-migrate new create_users
+```
+
 Each migration is a pair of files sharing a base name, which becomes the ID:
 
 ```
 migrations/
-  0001_create_users.up.sql
-  0001_create_users.down.sql
-  0002_add_email_index.up.sql
-  0002_add_email_index.down.sql
+  20260115103000_create_users.up.sql
+  20260115103000_create_users.down.sql
+  20260116084500_add_email_index.up.sql
+  20260116084500_add_email_index.down.sql
 ```
 
-IDs are compared lexicographically, so **numeric prefixes must be zero-padded to
-a consistent width**. Both halves are required — a missing `.down.sql` is an
-error, not an empty rollback.
+IDs are compared **lexicographically, never numerically**, which is why `new`
+prefixes them with a fixed-width UTC timestamp: sequence numbers collide between
+branches and break once they outgrow their padding. Hand-named files work too —
+see [Why timestamps](https://eidon-go.github.io/pg-migrate/migrations/#why-timestamps).
+
+Both halves are required — a missing `.down.sql` is an error, not an empty
+rollback.
 
 ### Directives
 
@@ -151,6 +159,7 @@ $$ LANGUAGE plpgsql;
 | `Down` / `DownAll` | Rolls back the last N / every applied migration. |
 | `Plan` | Reports what a `Reconcile` would do, including whether it would refuse. Reads only. |
 | `Status` | Lists what is recorded as applied. Reads only. |
+| `Baseline` | Records migrations as applied without running them, to adopt an existing database. |
 | `Forget` | Drops a bookkeeping row without running its rollback — the manual escape hatch. |
 
 Options: `WithRollback`, `WithInterleaved`, `WithLockTimeout`, `WithLockID`,
@@ -158,21 +167,24 @@ Options: `WithRollback`, `WithInterleaved`, `WithLockTimeout`, `WithLockID`,
 
 Sentinel errors for `errors.Is`: `ErrDivergence`, `ErrInterleaved`,
 `ErrFailedMigrations`, `ErrIrreversible`, `ErrEmptySource`, `ErrUnrecorded`,
-`ErrLockTimeout`, `ErrPoolTooSmall`.
+`ErrLockTimeout`, `ErrPoolTooSmall`, `ErrAlreadyRecorded`, `ErrBaselineNotFound`.
 
 Full reference on [pkg.go.dev](https://pkg.go.dev/github.com/eidon-go/pg-migrate).
 
 ## CLI
 
 ```bash
-migrate up                      # apply pending migrations
-migrate reconcile               # make the DB match the files
-migrate reconcile -r            # ...allowing rollback of extras
-migrate down 2                  # roll back the last two
-migrate down all                # roll back everything
-migrate plan --json             # what reconcile would do, no changes
-migrate status --json           # what is recorded as applied
-migrate forget 0007_bad_index   # drop a row without running its rollback
+pg-migrate new add_users_table     # scaffold a timestamped up/down pair
+pg-migrate validate                # check the files; no database needed
+pg-migrate up                      # apply pending migrations
+pg-migrate reconcile               # make the DB match the files
+pg-migrate reconcile -r            # ...allowing rollback of extras
+pg-migrate down 2                  # roll back the last two
+pg-migrate down all                # roll back everything
+pg-migrate plan --json             # what reconcile would do, no changes
+pg-migrate status --json           # what is recorded as applied
+pg-migrate baseline 20260115103000_create_users  # adopt an existing database
+pg-migrate forget 20260210091500_bad_index   # drop a row without running its rollback
 ```
 
 Configuration comes from environment variables, overridable by flags:

@@ -38,10 +38,10 @@ const (
 	statementEndLine   = directiveStart + " " + statementEndMarker
 )
 
-// directiveNoTransaction runs the script statement-by-statement outside a
+// DirectiveNoTransaction runs the script statement-by-statement outside a
 // transaction. Required for statements Postgres refuses inside one, such as
 // CREATE INDEX CONCURRENTLY.
-const directiveNoTransaction = "notransaction"
+const DirectiveNoTransaction = "notransaction"
 
 // DirectiveIrreversible marks a .down.sql as deliberately empty: the migration
 // cannot be undone, so any attempt to roll it back must fail rather than
@@ -62,7 +62,7 @@ const (
 // leave the migration running under semantics its author did not intend — for
 // example inside a transaction when it must not be.
 var knownDirectives = map[string]bool{
-	directiveNoTransaction: true,
+	DirectiveNoTransaction: true,
 	DirectiveIrreversible:  true,
 }
 

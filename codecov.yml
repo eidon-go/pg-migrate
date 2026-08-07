@@ -22,4 +22,4 @@ ignore:
   # the integration job, not meaningful as coverage targets.
   - "examples/**"
   - "test/dbtest/**"
-  - "cmd/migrate/main.go" # cobra wiring, covered end-to-end instead
+  - "cmd/pg-migrate/main.go" # cobra wiring, covered end-to-end instead

@@ -9,7 +9,9 @@
 // Plan and Status only read: Plan returns an *Analysis of what a Reconcile would
 // do (including whether it would refuse), and Status lists what is recorded as
 // applied. Neither takes the lock, and neither needs DDL privileges. Forget is
-// the manual escape hatch described under "Failed migrations stop everything".
+// the manual escape hatch described under "Failed migrations stop everything",
+// and Baseline adopts a database whose schema already exists by recording
+// migrations as applied without running them.
 //
 // # Migration files
 //
@@ -17,12 +19,14 @@
 // migration ID:
 //
 //	migrations/
-//	  0001_create_users.up.sql
-//	  0001_create_users.down.sql
+//	  20260115103000_create_users.up.sql
+//	  20260115103000_create_users.down.sql
 //
-// IDs are compared lexicographically, so numeric prefixes must be zero-padded
-// to a consistent width. Both halves are required — a missing .down.sql is an
-// error, not an empty rollback.
+// IDs are compared lexicographically, never numerically. The CLI's "new"
+// command therefore names them with a fixed-width UTC timestamp; a zero-padded
+// sequence works as long as it never outgrows its width, since the first ID that
+// does sorts before everything already applied. Both halves are required — a
+// missing .down.sql is an error, not an empty rollback.
 //
 // Each file is plain SQL. It may begin with a single directive line, which must
 // be the very first line:
@@ -160,6 +164,16 @@ var (
 	// connection. The advisory lock pins a connection for the whole run, so at
 	// least two are required: call SetMaxOpenConns(0) or >= 2.
 	ErrPoolTooSmall = db.ErrPoolTooSmall
+
+	// ErrAlreadyRecorded is returned by Baseline when the bookkeeping table
+	// already holds rows. Adoption happens once, on an empty ledger; the
+	// restriction is what stops Baseline from doubling as a way to mark a
+	// migration applied without running it.
+	ErrAlreadyRecorded = migrator.ErrAlreadyRecorded
+
+	// ErrBaselineNotFound is returned by Baseline when the given ID is not among
+	// the migrations in fsys.
+	ErrBaselineNotFound = migrator.ErrBaselineNotFound
 )
 
 // Option configures Reconcile/Up/Down/Plan. New options are added over time;
@@ -532,6 +546,41 @@ func Forget(ctx context.Context, sqlDB *sql.DB, id string, opts ...Option) error
 	}
 
 	return svc.Forget(ctx, id)
+}
+
+// Baseline records every migration up to and including throughID as applied,
+// without running any of them, and returns what it recorded.
+//
+// It is how this library is adopted on a database whose schema already exists.
+// Write the migrations that describe the current schema, then baseline through
+// the last of them: the ledger learns what is already there, and the next Up
+// applies only what comes after.
+//
+//	// The schema already matches migrations 1..N; adopt without re-running them.
+//	result, err := migrate.Baseline(ctx, db, fsys, "20260115103000_create_users")
+//
+// Two guards keep this from becoming a way to skip a migration. It returns
+// ErrAlreadyRecorded unless the bookkeeping table is empty, since adoption
+// happens once; and ErrBaselineNotFound if throughID is not in fsys, so the
+// recorded set is the one named rather than a silently different prefix.
+//
+// The scripts are stored exactly as a normal apply stores them, so a later Down
+// of a baselined migration runs the same text it would have run anyway. That is
+// worth thinking about: the rollback will execute against a schema this library
+// never built, and only the caller knows whether it fits.
+func Baseline(ctx context.Context, sqlDB *sql.DB, fsys fs.FS, throughID string, opts ...Option) (*Result, error) {
+	if throughID == "" {
+		return nil, errors.New("migrate: Baseline requires the ID to baseline through")
+	}
+
+	svc, _, err := newService(sqlDB, fsys, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := svc.Baseline(ctx, throughID)
+
+	return toResult(result), err
 }
 
 // Status reports the migrations recorded in the bookkeeping table, in the order

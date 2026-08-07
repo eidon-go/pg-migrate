@@ -1,5 +1,33 @@
 # Migration files
 
+## Creating a migration
+
+```bash
+pg-migrate new add_users_table
+```
+
+```
+migrations/20260806143022_add_users_table.up.sql
+migrations/20260806143022_add_users_table.down.sql
+```
+
+The name is slugified — lowercased, with anything that is not an ASCII letter or
+digit folded to a single underscore — and prefixed with a **UTC** timestamp.
+UTC rather than local time so that a team spread across time zones cannot
+generate IDs that sort in an order nobody intended.
+
+The pair is written to `--migration-path` (or `MIGRATION_PATH`), the same
+setting the other commands read from. The directory is created if it does not
+exist, and an existing file is never overwritten.
+
+Two flags scaffold the [directives](#directives) instead of leaving you to
+remember the exact spelling — they are case-sensitive and rejected when wrong:
+
+```bash
+pg-migrate new add_email_index --notransaction   # both halves
+pg-migrate new drop_legacy_table --irreversible  # down half only
+```
+
 ## Naming
 
 Each migration is a **pair** of files sharing a base name. That base name is the
@@ -7,10 +35,10 @@ migration ID.
 
 ```
 migrations/
-  0001_create_users.up.sql
-  0001_create_users.down.sql
-  0002_add_email_index.up.sql
-  0002_add_email_index.down.sql
+  20260115103000_create_users.up.sql
+  20260115103000_create_users.down.sql
+  20260116084500_add_email_index.up.sql
+  20260116084500_add_email_index.down.sql
 ```
 
 Rules the loader enforces:
@@ -18,58 +46,35 @@ Rules the loader enforces:
 - **Both halves are required.** A missing `.down.sql` is an error, not an empty
   rollback. If a migration genuinely cannot be undone, say so explicitly with the
   [`irreversible`](#irreversible) directive.
-- **IDs sort lexicographically.** Zero-pad numeric prefixes to a consistent
-  width. Timestamps (`20260115103000_add_users`) work equally well.
+- **IDs sort lexicographically**, never numerically. `pg-migrate new` handles this
+  for you; see [Why timestamps](#why-timestamps) if you name files by hand.
 - **Non-`.sql` files are ignored.** A `.sql` file that is neither `*.up.sql` nor
   `*.down.sql` is an error rather than a silent skip.
 - **Subdirectories are not traversed.** One flat directory.
 
-## Choosing an ID scheme
+## Why timestamps
 
-IDs are opaque strings compared byte by byte. Two schemes are common, and the
-library treats them identically.
+IDs are opaque strings compared **byte by byte**, never numerically. That single
+fact decides the naming scheme.
 
-=== "Sequence numbers"
+Sequence numbers (`0001_`, `0002_`) are readable and still work — the library
+does not care — but they have two problems. Two people branching in parallel
+pick the same number, and someone has to renumber. And the padding is a ceiling:
 
-    ```
-    0001_create_users.up.sql
-    0042_add_email_index.up.sql
-    ```
+```
+sorted: 10000_x  10001_x  9998_x  9999_x
+```
 
-    Readable, and the number matches the order things were applied. Two people
-    working in parallel can pick the same number — git will show the collision,
-    but someone has to renumber.
+After `9999`, the next ID sorts **before** everything already applied. Nothing is
+corrupted — the migration is reported as
+[interleaved](concepts.md#interleaved-migrations) rather than silently applied in
+the wrong place — but every migration from then on stays permanently flagged, and
+the warning stops carrying information.
 
-=== "Timestamps"
+A 14-digit timestamp has neither problem: it is always the same width, and two
+people cannot collide unless they run `new` in the same second.
 
-    ```
-    20260115103000_create_users.up.sql
-    20260806143022_add_email_index.up.sql
-    ```
-
-    No collisions between branches, and the width never runs out. Less readable,
-    and out-of-order applies are more common, because the order branches merge in
-    rarely matches the order they were created.
-
-Neither avoids [interleaved migrations](concepts.md#interleaved-migrations) — a
-branch created earlier but merged later sorts before what is already applied
-under both schemes.
-
-!!! warning "Sequence numbers break when they outgrow their width"
-
-    Comparison is lexicographic, not numeric. After `9999` the next ID sorts
-    **before** everything already applied:
-
-    ```
-    sorted: 10000_x  10001_x  9998_x  9999_x
-    ```
-
-    Nothing is corrupted — the migration is reported as interleaved rather than
-    applied silently in the wrong place — but every migration from then on stays
-    permanently flagged, and the warning stops meaning anything. Pick a width
-    you will not reach, or use timestamps.
-
-!!! tip "Switching schemes needs no rewrite"
+!!! tip "Migrating from sequence numbers needs no rewrite"
 
     A timestamp starts with `2`; a zero-padded number starts with `0`. Timestamps
     therefore sort after every existing sequence ID:
@@ -78,9 +83,13 @@ under both schemes.
     sorted: 0001_seq  0002_seq  20260806120000_ts
     ```
 
-    Start naming new migrations with timestamps whenever you like. Already
-    applied migrations keep their IDs, their stored rollback scripts, and their
-    place in the order.
+    Start using `pg-migrate new` whenever you like. Already applied migrations keep
+    their IDs, their stored rollback scripts, and their place in the order.
+
+Timestamps do not avoid [interleaved migrations](concepts.md#interleaved-migrations)
+— a branch created earlier but merged later still sorts before what is already
+applied. No naming scheme fixes that, which is why the library reports it
+instead.
 
 ## Directives
 
@@ -99,7 +108,7 @@ NoTransaction` will not silently do nothing.
 Runs the script statement-by-statement **outside** a transaction, for statements
 PostgreSQL refuses inside one.
 
-```sql title="0007_email_index.up.sql"
+```sql title="20260210091500_email_index.up.sql"
 -- +migrate notransaction
 CREATE INDEX CONCURRENTLY idx_users_email ON users(email);
 ```
@@ -128,7 +137,7 @@ pool, so nothing a script sets can contaminate the application.
 
 Belongs in a `.down.sql` that is deliberately empty:
 
-```sql title="0009_drop_legacy_table.down.sql"
+```sql title="20260304140000_drop_legacy_table.down.sql"
 -- +migrate irreversible
 ```
 

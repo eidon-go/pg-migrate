@@ -36,12 +36,16 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
+          # The cache keys off the lockfile, and it only looks for the standard
+          # names unless told otherwise — ours is requirements-docs.txt, so
+          # without this the step fails outright rather than skipping the cache.
+          cache-dependency-path: requirements-docs.txt
 
       - name: Install
         run: pip install -r requirements-docs.txt
@@ -49,7 +53,7 @@ jobs:
       - name: Build
         run: mkdocs build --strict
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
           path: site
@@ -67,4 +71,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

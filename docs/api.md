@@ -72,6 +72,32 @@ func Status(ctx context.Context, sqlDB *sql.DB, opts ...Option) ([]AppliedMigrat
 The bookkeeping rows in application order. Read-only. Returns an empty slice for
 a database that has never been migrated.
 
+### Baseline
+
+```go
+func Baseline(ctx context.Context, sqlDB *sql.DB, fsys fs.FS, throughID string, opts ...Option) (*Result, error)
+```
+
+Records every migration up to and including `throughID` as applied, without
+running any of them — how the library is adopted on a database whose schema
+already exists.
+
+```go
+// The schema already matches migrations 1..N; adopt without re-running them.
+result, err := migrate.Baseline(ctx, db, fsys, "20260115103000_create_users")
+if err != nil {
+    return err
+}
+
+// From here on, Up applies only what comes after.
+_, err = migrate.Up(ctx, db, fsys)
+```
+
+Returns `ErrAlreadyRecorded` unless the bookkeeping table is empty, and
+`ErrBaselineNotFound` if the ID is not in `fsys`. The first guard is what stops
+this from doubling as "mark applied without running" — a row it writes is
+indistinguishable from a genuine apply.
+
 ### Forget
 
 ```go
@@ -177,6 +203,8 @@ noted.
 | `ErrUnrecorded` | The schema changed but the ledger could not be updated. **Needs a human.** |
 | `ErrLockTimeout` | Another migration is in progress. Safe to retry. |
 | `ErrPoolTooSmall` | `SetMaxOpenConns(1)`. Use `0` or `>= 2`. |
+| `ErrAlreadyRecorded` | `Baseline` on a ledger that already holds rows. Adoption happens once. |
+| `ErrBaselineNotFound` | The ID given to `Baseline` is not in the source. |
 
 ```go
 switch {

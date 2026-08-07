@@ -1,7 +1,7 @@
 # CLI
 
 ```bash
-go install github.com/eidon-go/pg-migrate/cmd/migrate@latest
+go install github.com/eidon-go/pg-migrate/cmd/pg-migrate@latest
 ```
 
 Or download a static binary from the
@@ -10,10 +10,74 @@ with `CGO_ENABLED=0`, so it runs on `scratch` and `alpine` images unchanged.
 
 ## Commands
 
+### new
+
+```bash
+pg-migrate new add_users_table
+pg-migrate new "backfill user emails"
+pg-migrate new add_email_index --notransaction
+pg-migrate new drop_legacy_table --irreversible
+```
+
+Creates a `.up.sql`/`.down.sql` pair named `<utc-timestamp>_<slug>`, in
+`--migration-path`. Along with `validate`, one of the two commands that never
+touch the database.
+
+The name is lowercased and anything that is not an ASCII letter or digit becomes
+a single underscore, so `"backfill user emails"` and `backfill-user-emails` both
+yield `backfill_user_emails`. The directory is created if missing; an existing
+file is never overwritten.
+
+| Flag | Effect |
+|---|---|
+| `--notransaction` | Writes the `notransaction` directive into **both** halves — an index built `CONCURRENTLY` is dropped concurrently too. |
+| `--irreversible` | The down half becomes the `irreversible` directive and nothing else. |
+
+Passing both marks the up half `notransaction` and leaves the down half
+`irreversible`: there is no rollback script, so how it would have run does not
+arise.
+
+!!! note "Why the irreversible file has no comments"
+
+    The loader rejects a script marked `irreversible` that still has a body —
+    and a comment counts as a body. The generated file is therefore exactly one
+    line. Adding a friendly explanation underneath would make the migration fail
+    to load.
+
+### validate
+
+```bash
+pg-migrate validate
+pg-migrate validate --json
+```
+
+Parses every migration in `--migration-path` and reports what it found. **Needs
+no database and no credentials**, so it belongs in a pre-commit hook and in CI:
+
+```
+  20260115104500_create_sessions
+  20260210091500_sessions_expiry_index  [notransaction]
+
+2 migration(s) in ./migrations: OK
+```
+
+It catches what would otherwise surface halfway through a deployment — a missing
+`.down.sql`, a misspelled directive, an unclosed `StatementBegin` block, an empty
+rollback that forgot the `irreversible` marker. Exits non-zero on the first
+problem.
+
+`[notransaction]` and `[irreversible]` are called out because they are the two
+properties that change what a deployment risks: one gives up atomicity, the other
+gives up rollback.
+
+An empty directory is not an error — a project that has not written its first
+migration is valid. It is `reconcile` that treats an empty source as suspicious,
+because there it would mean rolling the schema back to nothing.
+
 ### up
 
 ```bash
-migrate up
+pg-migrate up
 ```
 
 Applies pending migrations forward. Extras in the database are left alone and
@@ -22,9 +86,9 @@ reported. The safe default for a deployment.
 ### reconcile
 
 ```bash
-migrate reconcile
-migrate reconcile -r    # --allow-rollback: roll back migrations missing from files
-migrate reconcile -i    # --allow-interleaved: apply out-of-order migrations
+pg-migrate reconcile
+pg-migrate reconcile -r    # --allow-rollback: roll back migrations missing from files
+pg-migrate reconcile -i    # --allow-interleaved: apply out-of-order migrations
 ```
 
 Makes the database match the files. Without `-r` it refuses when that would
@@ -33,8 +97,8 @@ require rolling something back.
 ### down
 
 ```bash
-migrate down 2      # the last two, most recent first
-migrate down all    # everything
+pg-migrate down 2      # the last two, most recent first
+pg-migrate down all    # everything
 ```
 
 Uses the rollback scripts stored in the database, so it works even when the
@@ -43,8 +107,8 @@ migration files are not present.
 ### plan
 
 ```bash
-migrate plan
-migrate plan --json
+pg-migrate plan
+pg-migrate plan --json
 ```
 
 What a `reconcile` would do. Takes no lock, changes nothing, needs no DDL
@@ -54,17 +118,41 @@ rollbacks does not mean the command would succeed.
 ### status
 
 ```bash
-migrate status
-migrate status --json
+pg-migrate status
+pg-migrate status --json
 ```
 
 What is recorded as applied, in application order. For a failed migration this is
 where you find the recorded error and the stored rollback script.
 
+### baseline
+
+```bash
+pg-migrate baseline 20260115103000_create_users
+```
+
+Records every migration **up to and including** that ID as applied, without
+running any of them. This is how you adopt pg-migrate on a database whose schema
+already exists:
+
+1. Write migrations describing the current schema.
+2. `pg-migrate baseline <last-of-them>` — the ledger learns what is already there.
+3. `pg-migrate up` — applies only what comes after.
+
+Two guards keep it honest. It refuses unless the bookkeeping table is **empty**,
+because adoption happens once; and the ID must exist in the source, so the
+recorded set is the one you named.
+
+!!! warning "Rollback of a baselined migration runs against a schema this tool never built"
+
+    The `.down.sql` is stored exactly as a normal apply would store it, so a
+    later `down` executes that script — against a schema somebody else created.
+    Whether it fits is something only you can know.
+
 ### forget
 
 ```bash
-migrate forget 0007_email_index
+pg-migrate forget 20260210091500_email_index
 ```
 
 Drops a bookkeeping row **without running its rollback**. The escape hatch after
@@ -117,8 +205,8 @@ instance is mid-migration and waiting it out beats failing the rollout.
 
 ```dockerfile
 FROM scratch
-COPY migrate /migrate
-ENTRYPOINT ["/migrate"]
+COPY pg-migrate /pg-migrate
+ENTRYPOINT ["/pg-migrate"]
 ```
 
 ```bash

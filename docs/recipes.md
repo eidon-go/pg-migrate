@@ -118,6 +118,66 @@ func TestMigrationsAreReversible(t *testing.T) {
 }
 ```
 
+## Adopt an existing database
+
+The schema has been there for years; this tool has not. Describe the current
+schema as migrations, then tell the ledger they are already applied:
+
+```bash
+# 1. Write migrations matching what the database already has.
+pg-migrate new create_users
+pg-migrate new add_orders
+# ... fill them in with the DDL that produced the current schema
+
+# 2. Check they parse before touching anything.
+pg-migrate validate
+
+# 3. Record them as applied, without running them.
+pg-migrate baseline 20260115104500_add_orders
+
+# 4. From here on, normal operation.
+pg-migrate up
+```
+
+The baselined migrations are never executed — their tables already exist, so
+running them would fail. What matters is that their **rollback scripts are
+stored**, so a later `down` has something to run.
+
+!!! tip "Verify before you trust it"
+
+    Get the baseline migrations right by generating them from the live schema
+    (`pg_dump --schema-only`), then confirm on a scratch copy that applying them
+    from empty reproduces production. A baseline is a claim about what the schema
+    is; nothing checks that claim for you.
+
+## Catch broken migrations before they reach CI
+
+`validate` needs no database, so it is cheap enough for a pre-commit hook:
+
+```yaml title=".pre-commit-config.yaml"
+repos:
+  - repo: local
+    hooks:
+      - id: pg-migrate-validate
+        name: validate migrations
+        entry: pg-migrate validate
+        language: system
+        files: ^migrations/.*\.sql$
+        pass_filenames: false
+```
+
+Or as a step in CI, before anything that needs credentials:
+
+```yaml
+- name: Validate migrations
+  run: go run github.com/eidon-go/pg-migrate/cmd/pg-migrate@latest validate
+  env:
+    MIGRATION_PATH: ./migrations
+```
+
+A misspelled `-- +migrate notransction` is otherwise found when the deployment
+is already running.
+
 ## Gate a deployment on the plan
 
 `Plan` needs no DDL privileges and takes no lock, so it is safe to run from CI
@@ -141,7 +201,7 @@ if len(analysis.ToRollback) > 0 {
 From a shell:
 
 ```bash
-migrate plan --json | jq -e '.blocked == false and (.to_rollback | length) == 0'
+pg-migrate plan --json | jq -e '.blocked == false and (.to_rollback | length) == 0'
 ```
 
 ## Zero-downtime index creation
@@ -149,13 +209,13 @@ migrate plan --json | jq -e '.blocked == false and (.to_rollback | length) == 0'
 `CREATE INDEX CONCURRENTLY` cannot run in a transaction, and it can take hours on
 a large table.
 
-```sql title="0012_users_email_index.up.sql"
+```sql title="20260401093000_users_email_index.up.sql"
 -- +migrate notransaction
 SET statement_timeout = 0;
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email ON users(email);
 ```
 
-```sql title="0012_users_email_index.down.sql"
+```sql title="20260401093000_users_email_index.down.sql"
 -- +migrate notransaction
 DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;
 ```

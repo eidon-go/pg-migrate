@@ -19,7 +19,11 @@ permissions:
   contents: read
 
 env:
-  GO_VERSION: "1.25"
+  # The toolchain the tooling runs on, not the versions the library supports —
+  # those are the test-unit matrix. Kept at the newest stable because betteralign
+  # and nilaway track it, and setup-go pins GOTOOLCHAIN=local, so an older
+  # runtime cannot fetch a newer one on demand.
+  GO_VERSION: "1.26"
 
 jobs:
   # The PR title becomes the squashed commit message, and git-cliff builds the
@@ -30,7 +34,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: amannn/action-semantic-pull-request@v5
+      - uses: amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -58,8 +62,8 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v5.0.0
         with:
           fail-on-severity: moderate
           deny-licenses: AGPL-3.0, GPL-2.0, GPL-3.0
@@ -68,9 +72,9 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -80,7 +84,7 @@ jobs:
         run: go mod tidy -diff
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.2
           args: --timeout=5m
@@ -88,7 +92,7 @@ jobs:
       # Integration tests are behind a build tag, so the default run does not
       # see them at all.
       - name: golangci-lint (integration build tag)
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.2
           args: --timeout=5m --build-tags=integration ./test/...
@@ -116,9 +120,9 @@ jobs:
       matrix:
         go: ["1.25", "1.26"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
 
@@ -155,9 +159,9 @@ jobs:
       matrix:
         target: [FuzzSplitSQLStatements, FuzzParseDirectiveHeader, FuzzQuoteIdentifier]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -168,7 +172,7 @@ jobs:
       # reproduced and turned into a regression test.
       - name: Upload crashers
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-corpus-${{ matrix.target }}
           path: internal/migrator/testdata/fuzz/
@@ -204,9 +208,9 @@ jobs:
       TEST_POSTGRES_PASSWORD: postgres
       TEST_POSTGRES_ADMIN_DB: postgres
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
 

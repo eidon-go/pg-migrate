@@ -1,7 +1,7 @@
 // Package dbconn opens *sql.DB connections backed by pgx. It is kept
 // separate from internal/db so that library consumers who bring their own
 // *sql.DB (via db.NewPostgresFromDB) never pull pgx into their build graph —
-// only the CLI (cmd/migrate) and test helpers, which open their own
+// only the CLI (cmd/pg-migrate) and test helpers, which open their own
 // connections, import this package.
 package dbconn
 
