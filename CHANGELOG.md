@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1](https://github.com/eidon-go/pg-migrate/releases/tag/v0.1.1) — 2026-08-07
+
+### Bug Fixes
+
+- **cli**: Report the real version for go install builds by @sergeyslonimsky ([8081fdd](https://github.com/eidon-go/pg-migrate/commit/8081fdd83440e0e1fd8a9bba6c3f30e212d928aa))
+
+
 ## [0.1.0](https://github.com/eidon-go/pg-migrate/releases/tag/v0.1.0) — 2026-08-07
 
 ### Features
@@ -15,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Documentation
+
+- **changelog**: Update for v0.1.0 by @sergeyslonimsky ([b99e70f](https://github.com/eidon-go/pg-migrate/commit/b99e70f32472e058cad9f51dd87d9b83a8c70d7a))
 
 - Explain migration ID schemes and the sequence width limit by @sergeyslonimsky ([0de1fdf](https://github.com/eidon-go/pg-migrate/commit/0de1fdffbd6d74471181ad068688af649d269305))
 
@@ -44,4 +53,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add GitHub Actions workflows by @sergeyslonimsky ([a7cfe3a](https://github.com/eidon-go/pg-migrate/commit/a7cfe3a52d56d9e9254c162b2d507cb8957215f9))
 
 
+[0.1.1]: https://github.com/eidon-go/pg-migrate/compare/v0.1.0...v0.1.1
 
