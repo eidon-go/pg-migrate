@@ -145,6 +145,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: coverage.out
+          flags: unit
           use_oidc: true
           fail_ci_if_error: false
 
@@ -207,6 +208,9 @@ jobs:
       TEST_POSTGRES_USER: postgres
       TEST_POSTGRES_PASSWORD: postgres
       TEST_POSTGRES_ADMIN_DB: postgres
+    permissions:
+      contents: read
+      id-token: write # OIDC upload to Codecov, in place of a stored token
     steps:
       - uses: actions/checkout@v7
 
@@ -216,8 +220,26 @@ jobs:
 
       # Each test creates and drops its own database, so no per-job container
       # orchestration is needed beyond this service.
+      #
+      # -coverpkg is what makes the profile meaningful: the tests live in test/,
+      # so without it they would report coverage of themselves rather than of the
+      # library they exercise — and this suite is where the locking, rollback and
+      # bookkeeping paths are actually covered.
       - name: Integration tests
-        run: go test -tags=integration -race -count=1 -timeout 10m ./test/...
+        run: |
+          go test -tags=integration -race -count=1 -timeout 10m \
+            -coverprofile=coverage-integration.out -coverpkg=./... ./test/...
+
+      # One version is enough — the other six run the same code against a
+      # different server and would upload an identical profile.
+      - name: Upload coverage
+        if: matrix.postgres == '16'
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage-integration.out
+          flags: integration
+          use_oidc: true
+          fail_ci_if_error: false
 
   # Single required status check: branch protection points at this one job
   # instead of tracking every matrix leg by name.

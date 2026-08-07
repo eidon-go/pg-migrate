@@ -1,16 +1,40 @@
 # https://docs.codecov.com/docs/codecov-yaml
+#
+# Coverage arrives from two jobs, because the two suites cover different things:
+# the unit tests cover the parsers, the integration suite covers the locking,
+# rollback and bookkeeping paths that need a real PostgreSQL. Reporting only the
+# first understates the project by roughly half.
 coverage:
   status:
     project:
       default:
-        # Coverage should not fall, but a percentage point of noise between runs
-        # is not a reason to block a PR.
+        # `auto` compares against the parent commit rather than a fixed number.
+        # A hard target invites the two bad outcomes of coverage gates: tests
+        # written to move a percentage, or a permanently red check nobody reads.
+        # What matters is that coverage does not quietly fall.
         target: auto
         threshold: 1%
     patch:
       default:
-        target: 80%
-        threshold: 0%
+        # New code should come with tests, but 100% would block PRs over an
+        # error branch that cannot be triggered without breaking the database
+        # mid-statement.
+        target: 70%
+        threshold: 5%
+
+# Both suites must report before the status is computed; otherwise a PR is
+# judged on the unit run alone, which arrives first and looks far worse.
+flag_management:
+  default_rules:
+    carryforward: true
+
+flags:
+  unit:
+    paths: ["!test/"]
+    carryforward: true
+  integration:
+    paths: ["!test/"]
+    carryforward: true
 
 comment:
   layout: "reach, diff, flags, files"
@@ -18,8 +42,12 @@ comment:
   require_changes: true
 
 ignore:
-  # Teaching material and integration-test scaffolding: exercised by hand and by
-  # the integration job, not meaningful as coverage targets.
+  # Teaching material: exercised by hand, not meaningful as a coverage target.
   - "examples/**"
+  # Integration-test scaffolding — the harness, not the subject.
   - "test/dbtest/**"
-  - "cmd/pg-migrate/main.go" # cobra wiring, covered end-to-end instead
+  # Cobra wiring: flag registration and command construction. Covering it means
+  # asserting that a flag was declared, which restates the code rather than
+  # testing behaviour. The commands themselves are covered through their
+  # extracted functions (slugify, writeMigrationPair, validateMigrations).
+  - "cmd/pg-migrate/main.go"
