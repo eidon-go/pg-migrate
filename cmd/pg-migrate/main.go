@@ -18,8 +18,10 @@ import (
 	"github.com/eidon-go/pg-migrate/internal/dbconn"
 )
 
-// version is set via ldflags during build.
-var version = "dev"
+// version is stamped in with -ldflags for release builds. It is deliberately
+// not the only source: see resolveVersion, which recovers the version for
+// binaries built by `go install`, where ldflags do not run.
+var version = devVersion
 
 func main() {
 	if err := run(); err != nil {
@@ -42,7 +44,7 @@ func run() error {
 	rootCmd := &cobra.Command{
 		Use:           "pg-migrate",
 		Short:         "Database migration tool",
-		Version:       version,
+		Version:       resolveVersion(version) + buildDetails(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
