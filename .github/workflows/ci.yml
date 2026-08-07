@@ -19,7 +19,11 @@ permissions:
   contents: read
 
 env:
-  GO_VERSION: "1.25"
+  # The toolchain the tooling runs on, not the versions the library supports —
+  # those are the test-unit matrix. Kept at the newest stable because betteralign
+  # and nilaway track it, and setup-go pins GOTOOLCHAIN=local, so an older
+  # runtime cannot fetch a newer one on demand.
+  GO_VERSION: "1.26"
 
 jobs:
   # The PR title becomes the squashed commit message, and git-cliff builds the
