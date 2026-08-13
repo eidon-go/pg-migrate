@@ -142,7 +142,7 @@ jobs:
       # so coverage from outside contributors lands only once it reaches main.
       - name: Upload coverage
         if: matrix.go == '1.25'
-        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: coverage.out
           flags: unit
@@ -234,7 +234,7 @@ jobs:
       # different server and would upload an identical profile.
       - name: Upload coverage
         if: matrix.postgres == '16'
-        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: coverage-integration.out
           flags: integration
