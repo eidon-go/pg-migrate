@@ -142,7 +142,7 @@ jobs:
       # so coverage from outside contributors lands only once it reaches main.
       - name: Upload coverage
         if: matrix.go == '1.25'
-        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: coverage.out
           flags: unit
@@ -173,7 +173,7 @@ jobs:
       # reproduced and turned into a regression test.
       - name: Upload crashers
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fuzz-corpus-${{ matrix.target }}
           path: internal/migrator/testdata/fuzz/
@@ -234,7 +234,7 @@ jobs:
       # different server and would upload an identical profile.
       - name: Upload coverage
         if: matrix.postgres == '16'
-        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: coverage-integration.out
           flags: integration
