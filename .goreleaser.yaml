@@ -130,6 +130,16 @@ release:
     go install github.com/eidon-go/pg-migrate/cmd/pg-migrate@{{ .Tag }}
     ```
 
+    Or use the container image (linux/amd64, linux/arm64):
+
+    ```bash
+    docker pull ghcr.io/eidon-go/pg-migrate:{{ .Version }}
+    ```
+
+    ```dockerfile
+    COPY --from=ghcr.io/eidon-go/pg-migrate:{{ .Version }} /pg-migrate /usr/local/bin/pg-migrate
+    ```
+
     ### Verifying this release
 
     Artifacts are signed with [cosign](https://docs.sigstore.dev/) keyless: no

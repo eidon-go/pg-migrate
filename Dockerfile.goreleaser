@@ -7,8 +7,9 @@ FROM gcr.io/distroless/static-debian12:nonroot
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/pg-migrate /pg-migrate
 
-# Migrations are mounted, not baked in: the same image serves every service.
-VOLUME ["/migrations"]
+# The default location for migrations, whether mounted at run time or copied in
+# by a derived image. No VOLUME: under Docker it would put an anonymous volume
+# over that path, and Kubernetes ignores it anyway.
 ENV MIGRATION_PATH=/migrations
 
 USER nonroot:nonroot
