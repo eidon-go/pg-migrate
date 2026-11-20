@@ -31,6 +31,9 @@ func main() {
 }
 
 func run() error {
+	ctx, stop := newSignalContext()
+	defer stop()
+
 	cfg, err := NewConfig()
 	if err != nil {
 		return err
@@ -544,7 +547,7 @@ becoming a way to skip a migration that was inconvenient to fix.`,
 	rootCmd.AddCommand(newCommand(resolvePath))
 	rootCmd.AddCommand(validateCommand(resolvePath))
 
-	if err := rootCmd.Execute(); err != nil {
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		return fmt.Errorf("execute command: %w", err)
 	}
 
