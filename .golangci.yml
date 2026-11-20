@@ -28,6 +28,7 @@ linters:
 
     # --- Opinionated structural rules that don't fit the project ----------
     - exhaustruct      # demands every struct field be set on construction
+    - exhaustruct_v5   # its v2.15 successor; both names stay off
     - tagliatelle      # JSON/YAML tag casing — no API JSON in this repo
     - nonamedreturns   # GetMigrations uses named returns intentionally
     - ireturn          # we return concrete types and accept interfaces — fine
@@ -40,7 +41,7 @@ linters:
     - err113           # forbids errors.New at call site; we use sentinels
     - noinlineerr      # bans `if err := f(); err != nil` — standard Go idiom
 
-    # --- Deprecated/replaced in v2.12 -------------------------------------
+    # --- Deprecated/replaced upstream -------------------------------------
     - gomodguard       # replaced by gomodguard_v2; we have no module guards
 
   settings:
@@ -301,7 +302,10 @@ formatters:
   settings:
     gofumpt:
       module-path: github.com/eidon-go/pg-migrate
-      extra-rules: true
+      # extra-rules was split into its two rules in v2.15.
+      extra:
+        group-params: true
+        clothe-returns: true
     goimports:
       local-prefixes:
         - github.com/eidon-go/pg-migrate

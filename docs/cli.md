@@ -8,6 +8,10 @@ Or download a static binary from the
 [releases page](https://github.com/eidon-go/pg-migrate/releases). It is built
 with `CGO_ENABLED=0`, so it runs on `scratch` and `alpine` images unchanged.
 
+A multi-arch container image (linux/amd64, linux/arm64) is published as
+`ghcr.io/eidon-go/pg-migrate:<version>` — the tag carries no `v` prefix, so
+release `v0.1.1` is image `0.1.1`. `latest` follows stable releases only.
+
 ### Verifying a release
 
 Releases are signed with [cosign](https://docs.sigstore.dev/) in keyless mode:
@@ -235,25 +239,53 @@ instance is mid-migration and waiting it out beats failing the rollout.
 
 ## In a container
 
-```dockerfile
-FROM scratch
-COPY pg-migrate /pg-migrate
-ENTRYPOINT ["/pg-migrate"]
-```
+The published image works as is, with the migrations mounted:
 
 ```bash
 docker run --rm \
   -e DATABASE_URL="postgres://user:pass@db:5432/app?sslmode=disable" \
-  -e MIGRATION_PATH=/migrations \
   -v "$PWD/migrations:/migrations:ro" \
-  ghcr.io/eidon-go/pg-migrate:latest up
+  ghcr.io/eidon-go/pg-migrate:0.1.1 up
 ```
+
+`MIGRATION_PATH` already defaults to `/migrations` inside the image. For a
+deployment, copy the binary into your application image instead, so the
+migrations and the code that expects them ship together:
+
+```dockerfile
+COPY --from=ghcr.io/eidon-go/pg-migrate:0.1.1 /pg-migrate /usr/local/bin/pg-migrate
+COPY migrations /migrations
+```
+
+`COPY --from` picks the binary matching the platform being built, so a
+multi-arch build needs no per-architecture download. See
+[Recipes](recipes.md#kubernetes) for running it.
 
 ## Exit codes
 
-`0` on success, non-zero on failure. A failure caused by
-`ErrFailedMigrations` is **terminal** — a pipeline should stop and surface it
-rather than retry. See
-[Troubleshooting](troubleshooting.md#a-migration-is-recorded-as-failed).
+The exit status says what kind of failure it was, so a pipeline can decide
+between stopping, retrying and asking for a flag without parsing the logs.
+
+| Code | Meaning | Errors | What to do |
+|---|---|---|---|
+| `0` | Success | — | — |
+| `1` | Any other failure | connection, SQL, bad flags, invalid files | Read the log. |
+| `3` | **Needs a human** | `ErrFailedMigrations`, `ErrUnrecorded` | Stop. Retrying cannot help — see [Troubleshooting](troubleshooting.md#a-migration-is-recorded-as-failed). |
+| `4` | Lock busy | `ErrLockTimeout` | Another run is migrating; retry later. |
+| `5` | Refused, nothing changed | `ErrDivergence`, `ErrInterleaved`, `ErrEmptySource`, `ErrIrreversible`, `ErrAlreadyRecorded`, `ErrBaselineNotFound` | Going ahead needs a flag or a decision the invocation did not carry. |
+
+`2` is deliberately unused, since shells and many tools read it as a usage
+error. The codes are part of the CLI's interface: a released code keeps its
+meaning.
+
+```bash
+pg-migrate up
+case $? in
+  0) ;;
+  4) echo "lock busy, retrying later"; exit 75 ;;
+  3) echo "migration state needs a human" >&2; exit 1 ;;
+  *) exit 1 ;;
+esac
+```
 
 Use `--log-format json` when the output is going to a log aggregator.

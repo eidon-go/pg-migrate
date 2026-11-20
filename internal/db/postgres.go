@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -332,9 +333,26 @@ func releaseAllAndClose(ctx context.Context, conn *sql.Conn) {
 	_ = conn.Close()
 }
 
+// sqlStateError is satisfied by the error types of both pgx (*pgconn.PgError)
+// and lib/pq (*pq.Error), so the SQLSTATE can be read without importing either.
+type sqlStateError interface {
+	SQLState() string
+}
+
 // isLockTimeout reports whether err is Postgres' lock_not_available, raised when
-// lock_timeout elapses. Matched on the SQLSTATE text so that no driver-specific
-// error type is needed here — internal/db stays driver-agnostic.
+// lock_timeout elapses. The code is read through the SQLState method rather than
+// a driver-specific type, so internal/db stays driver-agnostic. Matching the
+// message is only the fallback: pgx prints the code there, but lib/pq does not,
+// so a text match alone misses its timeouts.
 func isLockTimeout(err error) bool {
-	return err != nil && strings.Contains(err.Error(), lockTimeoutErrCode)
+	if err == nil {
+		return false
+	}
+
+	var stateErr sqlStateError
+	if errors.As(err, &stateErr) {
+		return stateErr.SQLState() == lockTimeoutErrCode
+	}
+
+	return strings.Contains(err.Error(), lockTimeoutErrCode)
 }
