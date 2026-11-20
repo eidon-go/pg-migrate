@@ -54,6 +54,14 @@ topo_order = false
 sort_commits = "newest"
 
 commit_parsers = [
+  # Housekeeping that users do not need to read about. Parsers apply first match
+  # wins, so the skips must come before the broad type rules they narrow — below
+  # "^docs", the changelog skip never fired.
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "^chore\\(deps\\)", skip = true },
+  { message = "^docs\\(changelog\\)", skip = true },
+  { message = "^style", skip = true },
+
   { message = "^feat", group = "<!-- 0 -->Features" },
   { message = "^fix", group = "<!-- 1 -->Bug Fixes" },
   { message = "^perf", group = "<!-- 2 -->Performance" },
@@ -62,13 +70,7 @@ commit_parsers = [
   { message = "^test", group = "<!-- 5 -->Testing" },
   { message = "^build", group = "<!-- 6 -->Build System" },
   { message = "^ci", group = "<!-- 7 -->CI" },
-
-  # Housekeeping that users do not need to read about.
-  { message = "^chore\\(release\\)", skip = true },
-  { message = "^chore\\(deps\\)", skip = true },
-  { message = "^docs\\(changelog\\)", skip = true },
   { message = "^chore", group = "<!-- 8 -->Miscellaneous" },
-  { message = "^style", skip = true },
 
   { body = ".*security", group = "<!-- 9 -->Security" },
 ]
@@ -81,6 +83,14 @@ commit_preprocessors = [
 tag_pattern = "v[0-9].*"
 skip_tags = ""
 ignore_tags = ""
+
+# Without this git-cliff cannot tell which GitHub repository to ask for commit
+# authors, so a local `make changelog-release` silently drops every
+# "by @username". The public API answers without a token; set GITHUB_TOKEN only
+# if the unauthenticated rate limit gets in the way.
+[remote.github]
+owner = "eidon-go"
+repo = "pg-migrate"
 
 [bump]
 # Tags carry a "v" prefix, so the computed next version must too — without this
