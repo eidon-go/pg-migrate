@@ -50,7 +50,7 @@ COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -o /out/app ./cmd/app
 
 FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=ghcr.io/eidon-go/pg-migrate:0.1.1 /pg-migrate /usr/local/bin/pg-migrate
+COPY --from=ghcr.io/eidon-go/pg-migrate:0.2.0 /pg-migrate /usr/local/bin/pg-migrate
 COPY --from=build /out/app /app
 COPY migrations /migrations
 ENV MIGRATION_PATH=/migrations

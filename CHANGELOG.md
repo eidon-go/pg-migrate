@@ -5,11 +5,23 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/eidon-go/pg-migrate/releases/tag/v0.2.0) — 2026-11-20
+
+### Features
+
+- **cli**: Exit codes, signal handling and Kubernetes deployment docs ([#15](https://github.com/eidon-go/pg-migrate/issues/15)) by @sergeyslonimsky ([d88296b](https://github.com/eidon-go/pg-migrate/commit/d88296b8bad234189bc68d248d9d5755ca06b238))
+
+
 ## [0.1.1](https://github.com/eidon-go/pg-migrate/releases/tag/v0.1.1) — 2026-08-07
 
 ### Bug Fixes
 
 - **cli**: Report the real version for go install builds by @sergeyslonimsky ([8081fdd](https://github.com/eidon-go/pg-migrate/commit/8081fdd83440e0e1fd8a9bba6c3f30e212d928aa))
+
+
+### Documentation
+
+- **changelog**: Update for v0.1.1 by @sergeyslonimsky ([7c62069](https://github.com/eidon-go/pg-migrate/commit/7c62069d3bf374205f23477a1dc7d6a9831090b8))
 
 
 ## [0.1.0](https://github.com/eidon-go/pg-migrate/releases/tag/v0.1.0) — 2026-08-07
@@ -53,5 +65,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add GitHub Actions workflows by @sergeyslonimsky ([a7cfe3a](https://github.com/eidon-go/pg-migrate/commit/a7cfe3a52d56d9e9254c162b2d507cb8957215f9))
 
 
+[0.2.0]: https://github.com/eidon-go/pg-migrate/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/eidon-go/pg-migrate/compare/v0.1.0...v0.1.1
 
