@@ -19,11 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **cli**: Report the real version for go install builds by @sergeyslonimsky ([8081fdd](https://github.com/eidon-go/pg-migrate/commit/8081fdd83440e0e1fd8a9bba6c3f30e212d928aa))
 
 
-### Documentation
-
-- **changelog**: Update for v0.1.1 by @sergeyslonimsky ([7c62069](https://github.com/eidon-go/pg-migrate/commit/7c62069d3bf374205f23477a1dc7d6a9831090b8))
-
-
 ## [0.1.0](https://github.com/eidon-go/pg-migrate/releases/tag/v0.1.0) — 2026-08-07
 
 ### Features
@@ -34,8 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Documentation
-
-- **changelog**: Update for v0.1.0 by @sergeyslonimsky ([b99e70f](https://github.com/eidon-go/pg-migrate/commit/b99e70f32472e058cad9f51dd87d9b83a8c70d7a))
 
 - Explain migration ID schemes and the sequence width limit by @sergeyslonimsky ([0de1fdf](https://github.com/eidon-go/pg-migrate/commit/0de1fdffbd6d74471181ad068688af649d269305))
 
