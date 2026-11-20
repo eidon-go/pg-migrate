@@ -58,7 +58,7 @@ last two" acts on, so getting it wrong is not cosmetic.
   bookkeeping table.
 - **[Library API](api.md)** — every entry point and option.
 - **[CLI](cli.md)** — commands, flags, environment variables.
-- **[Recipes](recipes.md)** — embed.FS, Kubernetes init containers, testing.
+- **[Recipes](recipes.md)** — embed.FS, Kubernetes (hook Job, init container), testing.
 - **[Database privileges](permissions.md)** — what a dedicated migration role
   actually needs.
 - **[Troubleshooting](troubleshooting.md)** — what each error means and how to

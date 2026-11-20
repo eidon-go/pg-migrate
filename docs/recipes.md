@@ -35,47 +35,121 @@ func runMigrations(ctx context.Context, db *sql.DB, fsys fs.FS, logger *slog.Log
 }
 ```
 
-## Kubernetes init container
+## Kubernetes
 
-Running migrations in an init container keeps them out of the application
-process, so N replicas do not all try to migrate. The advisory lock makes it safe
-even if they do.
+### Ship the migrations in the application image
+
+Put the CLI and the migration files into the image the application already
+runs from. The migrations are then versioned with the code that expects them,
+and rolling the deployment back rolls the file set back with it.
+
+```dockerfile
+FROM golang:1.25 AS build
+WORKDIR /src
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -o /out/app ./cmd/app
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=ghcr.io/eidon-go/pg-migrate:0.1.1 /pg-migrate /usr/local/bin/pg-migrate
+COPY --from=build /out/app /app
+COPY migrations /migrations
+ENV MIGRATION_PATH=/migrations
+ENTRYPOINT ["/app"]
+```
+
+`COPY --from` takes the binary for the platform being built, so a multi-arch
+build needs no per-architecture download. Image tags carry no `v` prefix.
+
+Avoid shipping migrations in a ConfigMap: it is capped at 1 MiB, the directory
+only ever grows, and it is versioned separately from the application.
+
+### A pre-deploy Job (Helm, Argo CD)
+
+When the deployment goes through Helm or Argo CD, run the migrations as a hook
+Job. It runs once per release instead of once per pod, a failure stops the
+release before the Deployment changes — the old pods keep serving — and a long
+migration does not count against the pods' startup probes.
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: app-migrations
+  annotations:
+    # Helm
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+    # Argo CD (it also maps the Helm hooks above, but says so explicitly)
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
+  # ErrFailedMigrations is terminal: a retry cannot fix it.
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
   template:
     spec:
-      initContainers:
+      restartPolicy: Never
+      containers:
         - name: migrate
-          image: ghcr.io/eidon-go/pg-migrate:v0.1.0
-          args: ["up"]
+          image: ghcr.io/acme/app:1.2.3   # the application image
+          command: ["/usr/local/bin/pg-migrate", "up", "--log-format", "json"]
           env:
             - name: DATABASE_URL
               valueFrom:
-                secretKeyRef: { name: app-db, key: url }
-            - name: MIGRATION_PATH
-              value: /migrations
-            # Longer than the pod's startup budget: a busy lock means another
-            # rollout is mid-migration, and waiting beats failing.
-            - name: MIGRATION_LOCK_TIMEOUT
-              value: "10m"
-          volumeMounts:
-            - { name: migrations, mountPath: /migrations, readOnly: true }
-      containers:
-        - name: app
-          image: ghcr.io/acme/app:v1.2.3
-      volumes:
-        - name: migrations
-          configMap: { name: app-migrations }
+                # A role with DDL rights; the application can run with less.
+                secretKeyRef: { name: app-db-migrator, key: url }
+```
+
+!!! note "Helm hooks and secrets"
+
+    A `pre-install` hook runs before the chart's other resources exist, so a
+    Secret created by the same chart is not there yet on the first install.
+    Reference a Secret managed outside the chart, or make the Secret itself a
+    hook with a lower `helm.sh/hook-weight`.
+
+### Or an init container
+
+Without a hook mechanism, an init container on the application's Deployment
+does the job. Every pod runs it, but the advisory lock queues them: the first
+applies the migrations and the rest find nothing to do.
+
+```yaml
+initContainers:
+  - name: migrate
+    image: ghcr.io/acme/app:1.2.3
+    command: ["/usr/local/bin/pg-migrate", "up", "--log-format", "json"]
+    env:
+      - name: DATABASE_URL
+        valueFrom:
+          secretKeyRef: { name: app-db-migrator, key: url }
+      # A busy lock means another pod is mid-migration; waiting beats failing.
+      - name: MIGRATION_LOCK_TIMEOUT
+        value: "10m"
 ```
 
 !!! warning "Do not retry ErrFailedMigrations"
 
-    Kubernetes restarts a failed init container by default. When the failure is
-    `ErrFailedMigrations`, restarting will never help — the state needs a human.
-    Consider `restartPolicy: Never` on a migration `Job` instead, and alert on it.
+    Kubernetes restarts a failed init container, so `ErrFailedMigrations` turns
+    into a CrashLoopBackOff that no restart will ever fix — the state needs a
+    human. Alert on the Deployment exceeding `progressDeadlineSeconds`, or use
+    the Job above.
+
+### Things that hold either way
+
+- **Use `up`, never `reconcile -r`, in a deployment.** Rolling the deployment
+  back runs the *older* image's command. `up` leaves the newer migrations in
+  place and reports them as `extras_left`; `reconcile -r` would roll them back,
+  dropping whatever they created.
+- **Write migrations that the previous release can live with.** During a
+  rolling update the old pods keep serving against the new schema. Add first,
+  remove in a later release (expand/contract).
+- **Leave room for a clean shutdown.** On SIGTERM the CLI cancels the running
+  statement, records a partially applied `notransaction` script as failed and
+  releases the lock, each step under its own timeout — about 20 seconds at
+  worst. The default `terminationGracePeriodSeconds` of 30 covers it.
+- **Gate the release on a plan.** `pg-migrate plan --json` reports whether a
+  reconcile would refuse and what it would roll back, without taking the lock;
+  see [`examples/deploy-gate`](https://github.com/eidon-go/pg-migrate/tree/main/examples/deploy-gate).
 
 ## Testing against a real database
 

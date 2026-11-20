@@ -21,8 +21,25 @@
     linux/darwin/windows, amd64/arm64.
 
     ```bash
-    tar -xzf pg-migrate_0.1.0_linux_amd64.tar.gz
+    VERSION=0.1.1 OS=linux ARCH=amd64
+    curl -fsSLO "https://github.com/eidon-go/pg-migrate/releases/download/v${VERSION}/pg-migrate_${VERSION}_${OS}_${ARCH}.tar.gz"
+    tar -xzf "pg-migrate_${VERSION}_${OS}_${ARCH}.tar.gz" pg-migrate
     sudo mv pg-migrate /usr/local/bin/
+    ```
+
+=== "Container image"
+
+    Multi-arch (linux/amd64, linux/arm64), built on distroless and running as
+    non-root. Image tags carry no `v` prefix.
+
+    ```bash
+    docker pull ghcr.io/eidon-go/pg-migrate:0.1.1
+    ```
+
+    To ship the CLI inside your own application image:
+
+    ```dockerfile
+    COPY --from=ghcr.io/eidon-go/pg-migrate:0.1.1 /pg-migrate /usr/local/bin/pg-migrate
     ```
 
 ## Write your first migration
