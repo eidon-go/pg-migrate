@@ -50,7 +50,7 @@ As a container image — multi-arch (linux/amd64, linux/arm64), distroless,
 non-root. Tags carry no `v` prefix:
 
 ```bash
-docker pull ghcr.io/eidon-go/pg-migrate:0.1.1
+docker pull ghcr.io/eidon-go/pg-migrate:0.2.0
 ```
 
 The usual way to run it in Kubernetes is to copy the binary into your
@@ -58,7 +58,7 @@ application image next to the migrations, so both ship as one versioned
 artifact:
 
 ```dockerfile
-COPY --from=ghcr.io/eidon-go/pg-migrate:0.1.1 /pg-migrate /usr/local/bin/pg-migrate
+COPY --from=ghcr.io/eidon-go/pg-migrate:0.2.0 /pg-migrate /usr/local/bin/pg-migrate
 COPY migrations /migrations
 ```
 
@@ -66,7 +66,7 @@ Or download a static binary from the [releases page](https://github.com/eidon-go
 (linux/darwin amd64/arm64, windows amd64):
 
 ```bash
-VERSION=0.1.1 OS=linux ARCH=amd64
+VERSION=0.2.0 OS=linux ARCH=amd64
 curl -fsSLO "https://github.com/eidon-go/pg-migrate/releases/download/v${VERSION}/pg-migrate_${VERSION}_${OS}_${ARCH}.tar.gz"
 tar -xzf "pg-migrate_${VERSION}_${OS}_${ARCH}.tar.gz" pg-migrate
 ```

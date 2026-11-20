@@ -32,7 +32,7 @@ is listed there with its hash. The container image is signed separately, by
 digest:
 
 ```bash
-cosign verify ghcr.io/eidon-go/pg-migrate:0.1.0 \
+cosign verify ghcr.io/eidon-go/pg-migrate:0.2.0 \
   --certificate-identity-regexp '^https://github\.com/eidon-go/pg-migrate/\.github/workflows/release\.yml@refs/tags/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
@@ -245,7 +245,7 @@ The published image works as is, with the migrations mounted:
 docker run --rm \
   -e DATABASE_URL="postgres://user:pass@db:5432/app?sslmode=disable" \
   -v "$PWD/migrations:/migrations:ro" \
-  ghcr.io/eidon-go/pg-migrate:0.1.1 up
+  ghcr.io/eidon-go/pg-migrate:0.2.0 up
 ```
 
 `MIGRATION_PATH` already defaults to `/migrations` inside the image. For a
@@ -253,7 +253,7 @@ deployment, copy the binary into your application image instead, so the
 migrations and the code that expects them ship together:
 
 ```dockerfile
-COPY --from=ghcr.io/eidon-go/pg-migrate:0.1.1 /pg-migrate /usr/local/bin/pg-migrate
+COPY --from=ghcr.io/eidon-go/pg-migrate:0.2.0 /pg-migrate /usr/local/bin/pg-migrate
 COPY migrations /migrations
 ```
 
