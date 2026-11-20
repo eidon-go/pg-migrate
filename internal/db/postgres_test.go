@@ -1,9 +1,12 @@
 package db_test
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/eidon-go/pg-migrate/internal/db"
 )
@@ -120,6 +123,41 @@ func TestGetDataSource_EscapesSpecialCharacters(t *testing.T) {
 
 			if connConfig.Password != tt.password {
 				t.Errorf("round-tripped password = %q, want %q (dsn: %q)", connConfig.Password, tt.password, dsn)
+			}
+		})
+	}
+}
+
+// pqStyleError mimics lib/pq's *pq.Error: the SQLSTATE is available through a
+// method but absent from the message.
+type pqStyleError struct{ code string }
+
+func (e *pqStyleError) Error() string    { return "pq: canceling statement due to lock timeout" }
+func (e *pqStyleError) SQLState() string { return e.code }
+
+func TestIsLockTimeout(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		err  error
+		name string
+		want bool
+	}{
+		{name: "nil", err: nil, want: false},
+		{name: "pgx error", err: &pgconn.PgError{Code: "55P03", Message: "canceling statement due to lock timeout"}, want: true},
+		{name: "lib/pq style error", err: &pqStyleError{code: "55P03"}, want: true},
+		{name: "wrapped", err: fmt.Errorf("acquire: %w", &pqStyleError{code: "55P03"}), want: true},
+		{name: "other SQLSTATE", err: &pqStyleError{code: "57014"}, want: false},
+		{name: "code only in message", err: errors.New("ERROR: lock timeout (SQLSTATE 55P03)"), want: true},
+		{name: "unrelated", err: errors.New("connection refused"), want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := db.IsLockTimeout(tt.err); got != tt.want {
+				t.Errorf("IsLockTimeout(%v) = %v, want %v", tt.err, got, tt.want)
 			}
 		})
 	}
