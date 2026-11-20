@@ -263,9 +263,29 @@ multi-arch build needs no per-architecture download. See
 
 ## Exit codes
 
-`0` on success, non-zero on failure. A failure caused by
-`ErrFailedMigrations` is **terminal** — a pipeline should stop and surface it
-rather than retry. See
-[Troubleshooting](troubleshooting.md#a-migration-is-recorded-as-failed).
+The exit status says what kind of failure it was, so a pipeline can decide
+between stopping, retrying and asking for a flag without parsing the logs.
+
+| Code | Meaning | Errors | What to do |
+|---|---|---|---|
+| `0` | Success | — | — |
+| `1` | Any other failure | connection, SQL, bad flags, invalid files | Read the log. |
+| `3` | **Needs a human** | `ErrFailedMigrations`, `ErrUnrecorded` | Stop. Retrying cannot help — see [Troubleshooting](troubleshooting.md#a-migration-is-recorded-as-failed). |
+| `4` | Lock busy | `ErrLockTimeout` | Another run is migrating; retry later. |
+| `5` | Refused, nothing changed | `ErrDivergence`, `ErrInterleaved`, `ErrEmptySource`, `ErrIrreversible`, `ErrAlreadyRecorded`, `ErrBaselineNotFound` | Going ahead needs a flag or a decision the invocation did not carry. |
+
+`2` is deliberately unused, since shells and many tools read it as a usage
+error. The codes are part of the CLI's interface: a released code keeps its
+meaning.
+
+```bash
+pg-migrate up
+case $? in
+  0) ;;
+  4) echo "lock busy, retrying later"; exit 75 ;;
+  3) echo "migration state needs a human" >&2; exit 1 ;;
+  *) exit 1 ;;
+esac
+```
 
 Use `--log-format json` when the output is going to a log aggregator.

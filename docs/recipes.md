@@ -132,7 +132,9 @@ initContainers:
     Kubernetes restarts a failed init container, so `ErrFailedMigrations` turns
     into a CrashLoopBackOff that no restart will ever fix — the state needs a
     human. Alert on the Deployment exceeding `progressDeadlineSeconds`, or use
-    the Job above.
+    the Job above. The container's last exit code tells the cases apart: `3`
+    needs a human, `4` is a busy lock that a restart will get past (see
+    [Exit codes](cli.md#exit-codes)).
 
 ### Things that hold either way
 

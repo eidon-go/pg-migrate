@@ -26,7 +26,7 @@ var version = devVersion
 func main() {
 	if err := run(); err != nil {
 		slog.Error("Command execution failed", "error", err)
-		os.Exit(1)
+		os.Exit(exitCode(err))
 	}
 }
 
@@ -178,7 +178,7 @@ func run() error {
 		case errors.Is(err, migrate.ErrInterleaved):
 			return fmt.Errorf("%w (re-run with --allow-interleaved to apply out-of-order migrations)", err)
 		case errors.Is(err, migrate.ErrFailedMigrations):
-			return fmt.Errorf("%w (see `migrate status` for the recorded error)", err)
+			return fmt.Errorf("%w (see `pg-migrate status` for the recorded error)", err)
 		}
 
 		return err
